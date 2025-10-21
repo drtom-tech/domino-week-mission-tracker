@@ -57,7 +57,17 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
 function isPreviewMode() {
   if (typeof window === "undefined") return false
   const hostname = window.location.hostname
-  return hostname.includes("vusercontent.net") || hostname.includes("v0.app") || hostname.includes("localhost")
+
+  // Only v0.app and localhost are preview mode
+  // Production Vercel URLs (*.vercel.app) should use real NextAuth
+  const isV0Preview = hostname.includes("v0.app") || hostname.includes("localhost")
+
+  console.log("[v0] Preview Mode Detection:", {
+    hostname,
+    isV0Preview,
+  })
+
+  return isV0Preview
 }
 
 const RealSessionProvider = dynamic(() => import("next-auth/react").then((mod) => mod.SessionProvider), {
@@ -70,12 +80,16 @@ export default function NextAuthProvider({ children }: { children: ReactNode }) 
   const [isPreview, setIsPreview] = useState(true) // Default to preview to avoid flash
 
   useEffect(() => {
-    setIsPreview(isPreviewMode())
+    const preview = isPreviewMode()
+    console.log("[v0] NextAuthProvider - Setting preview mode:", preview)
+    setIsPreview(preview)
   }, [])
 
   if (isPreview) {
+    console.log("[v0] Using MockSessionProvider")
     return <MockSessionProvider>{children}</MockSessionProvider>
   }
 
+  console.log("[v0] Using RealSessionProvider (NextAuth)")
   return <RealSessionProvider>{children}</RealSessionProvider>
 }
