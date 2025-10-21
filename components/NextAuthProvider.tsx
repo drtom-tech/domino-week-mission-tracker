@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useContext, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import dynamic from "next/dynamic"
 
 // Mock session type matching NextAuth's Session type
 type MockSession = {
@@ -53,8 +54,28 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
   )
 }
 
+function isPreviewMode() {
+  if (typeof window === "undefined") return false
+  const hostname = window.location.hostname
+  return hostname.includes("vusercontent.net") || hostname.includes("v0.app") || hostname.includes("localhost")
+}
+
+const RealSessionProvider = dynamic(() => import("next-auth/react").then((mod) => mod.SessionProvider), {
+  ssr: false,
+  loading: () => null,
+})
+
 // Main provider component
 export default function NextAuthProvider({ children }: { children: ReactNode }) {
-  // Always use mock provider to avoid NextAuth crypto errors in preview
-  return <MockSessionProvider>{children}</MockSessionProvider>
+  const [isPreview, setIsPreview] = useState(true) // Default to preview to avoid flash
+
+  useEffect(() => {
+    setIsPreview(isPreviewMode())
+  }, [])
+
+  if (isPreview) {
+    return <MockSessionProvider>{children}</MockSessionProvider>
+  }
+
+  return <RealSessionProvider>{children}</RealSessionProvider>
 }
