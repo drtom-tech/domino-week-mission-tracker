@@ -60,7 +60,9 @@ function isPreviewMode() {
 
   // Only v0.app and localhost are preview mode
   // Production Vercel URLs (*.vercel.app) should use real NextAuth
-  const isV0Preview = hostname.includes("v0.app") || hostname.includes("localhost")
+  // v0.app = v0 preview, vusercontent.net = Vercel preview deployments, localhost = local dev
+  const isV0Preview =
+    hostname.includes("v0.app") || hostname.includes("vusercontent.net") || hostname.includes("localhost")
 
   console.log("[v0] Preview Mode Detection:", {
     hostname,
