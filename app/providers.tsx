@@ -1,21 +1,15 @@
-// Path: app/providers.tsx
-"use client";
+"use client"
 
-import { SessionProvider } from "next-auth/react";
-import { ThemeProvider } from "next-themes";
-import type { ReactNode } from "react";
+import { MockSessionProvider } from "@/components/NextAuthProvider"
+import { ThemeProvider } from "next-themes"
+import type { ReactNode } from "react"
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="system"
-        enableSystem
-        disableTransitionOnChange
-      >
+    <MockSessionProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
         {children}
       </ThemeProvider>
-    </SessionProvider>
-  );
+    </MockSessionProvider>
+  )
 }

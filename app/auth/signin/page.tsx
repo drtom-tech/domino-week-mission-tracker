@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { useAuth } from "@/lib/use-auth"
 import { Button } from "@/components/ui/button"
@@ -46,11 +48,7 @@ export default function SignIn() {
       <Card className="p-8 w-full max-w-md">
         <h1 className="text-2xl font-bold mb-6 text-center">Sign In</h1>
 
-        <Button 
-          onClick={handleGoogleSignIn} 
-          className="w-full mb-4" 
-          variant="outline"
-        >
+        <Button onClick={handleGoogleSignIn} className="w-full mb-4 bg-transparent" variant="outline">
           Sign in with Google
         </Button>
 
@@ -59,26 +57,14 @@ export default function SignIn() {
             <span className="w-full border-t" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
-              Or continue with email
-            </span>
+            <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-destructive/10 text-destructive p-3 rounded text-sm">
-              {error}
-            </div>
-          )}
+          {error && <div className="bg-destructive/10 text-destructive p-3 rounded text-sm">{error}</div>}
 
-          <Input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
+          <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
 
           <Input
             type="password"
