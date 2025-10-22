@@ -1,15 +1,22 @@
-"use client"
+// Path: app/providers.tsx
+"use client";
 
-import NextAuthProvider from "@/components/NextAuthProvider"
-import { ThemeProvider } from "next-themes"
-import type { ReactNode } from "react"
+import { SessionProvider } from "next-auth/react"; // Import directly
+import { ThemeProvider } from "next-themes";
+import type { ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <NextAuthProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    // Use the official SessionProvider directly
+    <SessionProvider>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         {children}
       </ThemeProvider>
-    </NextAuthProvider>
-  )
+    </SessionProvider>
+  );
 }
