@@ -1,5 +1,7 @@
 "use server"
 
+import { sql } from "@/lib/db"
+
 function isV0Preview(): boolean {
   const vercelUrl = process.env.VERCEL_URL
 
@@ -30,10 +32,25 @@ export async function getUserId(): Promise<number> {
     process.env.VERCEL_URL,
   )
 
-  // In preview mode, always return mock user ID
   if (usePreview) {
-    console.log("[v0] Using mock user ID: 1")
-    return 1
+    try {
+      // Get the preview user from the database
+      const result = await sql`
+        SELECT id FROM users WHERE email = 'preview@v0.test' LIMIT 1
+      `
+
+      if (result && result.length > 0) {
+        const previewUserId = Number(result[0].id)
+        console.log("[v0] Using preview user ID:", previewUserId)
+        return previewUserId
+      } else {
+        console.warn("[v0] Preview user not found in database, falling back to ID 1")
+        return 1
+      }
+    } catch (error) {
+      console.error("[v0] Error fetching preview user:", error)
+      return 1
+    }
   }
 
   // In production, use real NextAuth
