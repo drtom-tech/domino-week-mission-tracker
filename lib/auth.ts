@@ -1,4 +1,3 @@
-// Path: lib/auth.ts
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
@@ -29,6 +28,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 const initializeAuth = () => {
   try {
     return NextAuth({
+      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
       adapter: NeonAdapter(pool),
       session: { strategy: "jwt" },
       providers: [
