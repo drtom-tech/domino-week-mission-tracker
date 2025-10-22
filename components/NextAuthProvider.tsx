@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import dynamic from "next/dynamic"
+import { useSession as useNextAuthSession } from "next-auth/react"
 import type { Session } from "next-auth"
 
 // Mock Session Context Type
@@ -80,32 +81,20 @@ export default function NextAuthProvider({ children }: { children: ReactNode }) 
   return <RealSessionProvider>{children}</RealSessionProvider>
 }
 
-// Export a custom useSession hook that works with both providers
-export function useAuthSession() {
+export function useUnifiedSession() {
   const [isPreview, setIsPreview] = useState<boolean | null>(null)
 
   useEffect(() => {
     setIsPreview(shouldUseMockProvider())
   }, [])
 
-  // Use mock session in preview mode
+  // Get mock session (always available)
   const mockSession = useMockSession()
 
-  // Dynamically import real useSession only when needed
-  const [realSession, setRealSession] = useState<any>(null)
+  // Get real session (only works when RealSessionProvider is active)
+  const realSession = useNextAuthSession()
 
-  useEffect(() => {
-    if (isPreview === false) {
-      // Only import and use real useSession in production
-      import("next-auth/react").then((mod) => {
-        const { useSession } = mod
-        // This is a hack to get the real session in production
-        // In a real app, you'd use useSession directly
-        setRealSession({ data: null, status: "loading" })
-      })
-    }
-  }, [isPreview])
-
+  // Return appropriate session based on environment
   if (isPreview === null) {
     return { data: null, status: "loading" as const, update: async () => null }
   }
@@ -114,7 +103,5 @@ export function useAuthSession() {
     return mockSession
   }
 
-  // In production, we need to use the real useSession from the context
-  // This is a simplified version - in production, the real SessionProvider handles this
-  return realSession || { data: null, status: "loading" as const, update: async () => null }
+  return realSession
 }

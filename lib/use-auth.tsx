@@ -1,20 +1,10 @@
 "use client"
 
-import { useMockSession } from "@/components/NextAuthProvider"
-
-// Mock sign in/out functions for preview mode
-const mockSignIn = async () => {
-  console.log("[v0] Mock sign in called")
-  return undefined
-}
-
-const mockSignOut = async () => {
-  console.log("[v0] Mock sign out called")
-  return undefined
-}
+import { useUnifiedSession } from "@/components/NextAuthProvider"
+import { signIn, signOut } from "next-auth/react"
 
 export function useAuth() {
-  const { data: session, status } = useMockSession()
+  const { data: session, status } = useUnifiedSession()
 
   const user = session?.user ?? null
 
@@ -22,7 +12,7 @@ export function useAuth() {
     data: session,
     status: status,
     user: user,
-    signIn: mockSignIn,
-    signOut: mockSignOut,
+    signIn: signIn,
+    signOut: signOut,
   }
 }
