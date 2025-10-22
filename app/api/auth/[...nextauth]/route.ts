@@ -1,7 +1,6 @@
 import { handlers } from "@/lib/auth"
 
-export const GET = handlers.GET
-export const POST = handlers.POST
+export const GET = handlers?.GET ?? (async () => new Response("Auth not available", { status: 503 }))
+export const POST = handlers?.POST ?? (async () => new Response("Auth not available", { status: 503 }))
 
-// Ensure Node.js runtime for the Neon adapter
 export const runtime = "nodejs"
