@@ -1,48 +1,30 @@
-"use client"
+// Path: lib/use-auth.tsx
+"use client";
 
-import { useEffect, useState } from "react"
-import { useMockSession } from "@/components/NextAuthProvider"
+import { useSession, signIn, signOut } from "next-auth/react";
+import type { Session } from "next-auth"; // Optional: Import Session type for better typing
 
-// Detect if we're in v0 preview mode
-function isPreviewMode() {
-  if (typeof window === "undefined") return false
-
-  const hostname = window.location.hostname
-
-  return hostname.includes("vusercontent.net") || hostname.includes("v0.app")
-}
-
+// This hook now acts as a simple wrapper around the real useSession hook from next-auth/react
 export function useAuth() {
-  const mockSession = useMockSession()
-  const [mounted, setMounted] = useState(false)
+  const { data: session, status } = useSession();
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Server-side: return loading state
-  if (!mounted) {
-    return {
-      data: null,
-      status: "loading" as const,
-      user: null,
-      signIn: async () => {},
-      signOut: async () => {},
-    }
-  }
+  // Determine user object based on session data
+  const user = session?.user ?? null;
 
   return {
-    data: mockSession.data,
-    status: mockSession.status,
-    user: mockSession.data?.user || null,
-    signIn: async (provider?: string) => {
-      console.log("[v0] Preview Mode - Mock sign in with provider:", provider)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      return { ok: true, error: null, status: 200, url: null }
-    },
-    signOut: async () => {
-      console.log("[v0] Preview Mode - Mock sign out")
-      await new Promise((resolve) => setTimeout(resolve, 500))
-    },
-  }
+    data: session, // The full session object (or null)
+    status: status, // "loading", "authenticated", or "unauthenticated"
+    user: user,     // The user object (or null)
+    signIn,         // The real signIn function from next-auth/react
+    signOut,        // The real signOut function from next-auth/react
+  };
 }
+
+// You can optionally create more specific hooks if needed, e.g.:
+// export function useUser() {
+//   const { data: session, status } = useSession();
+//   if (status === "loading") {
+//     return { user: null, isLoading: true };
+//   }
+//   return { user: session?.user ?? null, isLoading: false };
+// }
