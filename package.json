@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@auth/core": "latest",
-    "@auth/neon-adapter": "latest",
+    "@auth/neon-adapter": "^1.2.0",
     "@dnd-kit/core": "latest",
     "@dnd-kit/sortable": "latest",
     "@dnd-kit/utilities": "latest",

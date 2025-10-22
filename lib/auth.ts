@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { Pool } from "@neondatabase/serverless"
-import NeonAdapter from "@auth/neon-adapter"
+// import NeonAdapter from "@auth/neon-adapter"
 
 console.log("=== AUTH INITIALIZATION DEBUG ===")
 console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL)
@@ -37,7 +37,7 @@ const initializeAuth = () => {
   try {
     return NextAuth({
       secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-      adapter: NeonAdapter(pool),
+      // adapter: NeonAdapter(pool),
       session: { strategy: "jwt" },
       providers: [
         Google({
