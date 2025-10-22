@@ -1,7 +1,7 @@
 import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
-import { NeonAdapter } from "@auth/neon-adapter"
+import NeonAdapter from "@auth/neon-adapter"
 import { Pool } from "@neondatabase/serverless"
 
 console.log("[v0] Route file loading...")
