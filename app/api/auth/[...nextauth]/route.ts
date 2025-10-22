@@ -1,9 +1,5 @@
 // Path: app/api/auth/[...nextauth]/route.ts
-import NextAuth from "next-auth"
-import { authOptions } from "@/lib/auth" // Make sure this path is correct
+export { handlers as GET, handlers as POST } from "@/lib/auth"; // Adjust path if needed
 
-const handler = NextAuth(authOptions)
-
-export { handler as GET, handler as POST }
-
-export const runtime = "nodejs"
+// Ensure Node.js runtime for the Neon adapter
+export const runtime = "nodejs";

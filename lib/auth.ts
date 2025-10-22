@@ -1,17 +1,12 @@
 // Path: lib/auth.ts
-import type { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import CredentialsProvider from "next-auth/providers/credentials";
+import NextAuth from "next-auth";
+import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials"; // Note: v5 uses Credentials directly
 import { Pool } from "@neondatabase/serverless";
-// Correct Import: Use default import for NeonAdapter
 import NeonAdapter from "@auth/neon-adapter";
 
-// Initialize the Neon DB pool. DO NOT create it inside the NextAuth handler when using CredentialsProvider.
-// Create it once here. The adapter pattern differs slightly from the lazy init pattern.
+// Initialize the Neon DB pool
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-// Pass the Pool instance directly to the NeonAdapter default export
-const adapter = NeonAdapter(pool);
 
 // Helper function to verify password hash using Web Crypto API
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
@@ -23,20 +18,16 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   return computedHash === hash;
 }
 
-export const authOptions: NextAuthOptions = {
-  // Use the configured Neon adapter
-  adapter: adapter,
-
-  session: {
-    strategy: "jwt",
-  },
-
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  adapter: NeonAdapter(pool),
+  session: { strategy: "jwt" }, // JWT is recommended for serverless
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
-    CredentialsProvider({
+    Credentials({
+      // The name 'credentials' is used in the signIn function
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
@@ -49,10 +40,9 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Use the pool created outside the handler
           const { rows } = await pool.query(
             "SELECT * FROM users WHERE email = $1",
-            [credentials.email]
+            [credentials.email as string] // Cast needed for v5 type safety
           );
           const user = rows[0];
 
@@ -61,13 +51,7 @@ export const authOptions: NextAuthOptions = {
             return null;
           }
 
-          // Ensure email is verified (if your logic requires it)
-          // if (!user.email_verified) {
-          //   console.log("Authorize: Email not verified.");
-          //   throw new Error("EMAIL_NOT_VERIFIED"); // Throwing error shows message on signin page
-          // }
-
-          const isValid = await verifyPassword(credentials.password, user.password_hash);
+          const isValid = await verifyPassword(credentials.password as string, user.password_hash); // Cast needed
 
           if (!isValid) {
             console.log("Authorize: Invalid password.");
@@ -75,48 +59,52 @@ export const authOptions: NextAuthOptions = {
           }
 
           console.log("Authorize: Credentials valid, returning user.");
+          // Must return an object matching the User type expected by Auth.js v5 AdapterUser
           return {
-            id: user.id.toString(), // Ensure ID is a string for NextAuth
+            id: user.id.toString(),
             email: user.email,
             name: user.name,
             image: user.image,
+            emailVerified: user.email_verified, // Pass emailVerified status
           };
-        } catch (dbError: any) {
-             // Handle specific errors like "EMAIL_NOT_VERIFIED"
-             if (dbError.message === "EMAIL_NOT_VERIFIED") {
-                 throw dbError; // Re-throw to show on signin page
-             }
+        } catch (dbError) {
           console.error("Database error during authorize:", dbError);
-          // For generic errors, return null or throw a generic error
-          // throw new Error("AUTHENTICATION_FAILED");
-          return null; // Returning null shows a generic error message
+          return null; // Returning null shows a generic error
         }
       },
     }),
   ],
-
   callbacks: {
-    async jwt({ token, user }) {
-      // Add user ID from authorize or OAuth flow to the token
-      if (user) {
-        token.id = user.id;
-      }
-      return token;
-    },
+    // Session callback gets token, user, session
+    // User object comes from adapter or authorize, token comes from jwt callback
     async session({ session, token }) {
-      // Add user ID from token to the session object
-      if (session.user && token.id) {
-        session.user.id = token.id as string;
-      }
+       // Add user ID and potentially other token data to session
+       if (token.sub && session.user) {
+         session.user.id = token.sub; // Use token.sub for user ID in JWT strategy
+       }
+      // Add custom fields from token if needed
+      // if (token.customField && session.user) {
+      //   session.user.customField = token.customField;
+      // }
       return session;
     },
+    // JWT callback gets token, user, account, profile, isNewUser
+    // User object only passed on initial sign in
+    async jwt({ token, user, account, profile }) {
+      // Persist the user ID from user obj (on sign in) to the token
+      if (user) {
+        token.sub = user.id; // Standard JWT subject claim
+      }
+      // Add custom fields to token if needed
+      // if (account?.provider === "google") {
+      //    token.accessToken = account.access_token; // Example: Persist access token
+      // }
+      return token;
+    },
   },
-
   pages: {
     signIn: "/auth/signin",
-     // Add error page if you have one, to handle authorize throws
-     error: '/auth/error', // Optional: route to display auth errors
+    // error: '/auth/error', // Optional
   },
-
-  secret: process.env.AUTH_SECRET,
-};
+  // secret is automatically read from AUTH_SECRET in v5
+});
