@@ -2,7 +2,15 @@ import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { Pool } from "@neondatabase/serverless"
-import { NeonAdapter } from "@auth/neon-adapter"
+import NeonAdapter from "@auth/neon-adapter"
+
+console.log("=== AUTH INITIALIZATION DEBUG ===")
+console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL)
+console.log("DATABASE_URL value:", process.env.DATABASE_URL?.substring(0, 20) + "...")
+console.log("AUTH_SECRET exists:", !!process.env.AUTH_SECRET)
+console.log("NEXTAUTH_SECRET exists:", !!process.env.NEXTAUTH_SECRET)
+console.log("GOOGLE_CLIENT_ID exists:", !!process.env.GOOGLE_CLIENT_ID)
+console.log("GOOGLE_CLIENT_SECRET exists:", !!process.env.GOOGLE_CLIENT_SECRET)
 
 const databaseUrl = process.env.DATABASE_URL || "postgresql://placeholder"
 
@@ -99,7 +107,7 @@ const initializeAuth = () => {
     })
   } catch (error) {
     console.error("Failed to initialize NextAuth:", error)
-    // Return null to signal initialization failure
+    console.error("Error details:", JSON.stringify(error, null, 2))
     return null
   }
 }
