@@ -1,97 +1,97 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
-import dynamic from "next/dynamic"
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+import { type Session } from "next-auth"; // Import Session type from next-auth
 
-// Mock session type matching NextAuth's Session type
-type MockSession = {
-  user: {
-    id: string
-    name: string
-    email: string
-    image?: string
-  }
-  expires: string
-}
-
+// --- Mock Session Logic (for v0 editor/localhost) ---
 type MockSessionContextType = {
-  data: MockSession | null
-  status: "authenticated" | "loading" | "unauthenticated"
-}
+  data: Session | null;
+  status: "authenticated" | "loading" | "unauthenticated";
+};
 
 const MockSessionContext = createContext<MockSessionContextType>({
   data: null,
   status: "unauthenticated",
-})
+});
 
-// Hook to access mock session
-export function useMockSession() {
-  return useContext(MockSessionContext)
-}
-
-// Mock session provider for preview mode
 export function MockSessionProvider({ children }: { children: ReactNode }) {
-  // Provide a mock authenticated session for preview
-  const mockSession: MockSession = {
+  const mockSessionData: Session = {
     user: {
-      id: "1",
+      id: "mock-user-id-123", // Use a more distinct ID
       name: "Preview User",
       email: "preview@example.com",
-      image: undefined,
+      image: undefined, // Or a placeholder image URL
     },
-    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-  }
+    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Standard expiry
+  };
 
   return (
     <MockSessionContext.Provider
       value={{
-        data: mockSession,
-        status: "authenticated",
+        data: mockSessionData,
+        status: "authenticated", // Simulate logged-in state
       }}
     >
       {children}
     </MockSessionContext.Provider>
-  )
+  );
+}
+// --- End Mock Session Logic ---
+
+
+// --- Provider Switch Logic ---
+
+// Dynamically import the real SessionProvider only when needed
+const RealSessionProvider = dynamic(
+  () => import("next-auth/react").then((mod) => mod.SessionProvider),
+  {
+    ssr: false, // Session provider is client-side
+    loading: () => <p>Loading session...</p>, // Optional loading state
+  }
+);
+
+// Simplified function to detect ONLY v0 editor or localhost
+function shouldUseMockProvider(): boolean {
+  // Return false during Server-Side Rendering or Static Generation
+  if (typeof window === "undefined") {
+      console.log("[v0] SSR detected, using Real Provider placeholder");
+      return false;
+  }
+
+  const hostname = window.location.hostname;
+  const useMock = hostname.includes("v0.app") || hostname.includes("localhost");
+
+  console.log("[v0] Should use mock provider?", { hostname, useMock });
+  return useMock;
 }
 
-function isPreviewMode() {
-  if (typeof window === "undefined") return false
-  const hostname = window.location.hostname
-
-  // Only v0.app and localhost are preview mode
-  // Production Vercel URLs (*.vercel.app) should use real NextAuth
-  // v0.app = v0 preview, vusercontent.net = Vercel preview deployments, localhost = local dev
-  const isV0Preview =
-    hostname.includes("v0.app") || hostname.includes("vusercontent.net") || hostname.includes("localhost")
-
-  console.log("[v0] Preview Mode Detection:", {
-    hostname,
-    isV0Preview,
-  })
-
-  return isV0Preview
-}
-
-const RealSessionProvider = dynamic(() => import("next-auth/react").then((mod) => mod.SessionProvider), {
-  ssr: false,
-  loading: () => null,
-})
 
 // Main provider component
 export default function NextAuthProvider({ children }: { children: ReactNode }) {
-  const [isPreview, setIsPreview] = useState(true) // Default to preview to avoid flash
+  // Use state to manage which provider to render, prevents hydration mismatch
+  const [useMock, setUseMock] = useState<boolean | null>(null); // Start with null state
 
   useEffect(() => {
-    const preview = isPreviewMode()
-    console.log("[v0] NextAuthProvider - Setting preview mode:", preview)
-    setIsPreview(preview)
-  }, [])
+    // Determine which provider to use ONLY on the client-side
+    setUseMock(shouldUseMockProvider());
+  }, []); // Empty dependency array ensures this runs only once on mount
 
-  if (isPreview) {
-    console.log("[v0] Using MockSessionProvider")
-    return <MockSessionProvider>{children}</MockSessionProvider>
+
+  // Render loading state or null initially until client-side check completes
+  if (useMock === null) {
+      console.log("[v0] Initializing provider check...");
+      // You might want a loading spinner here, or just null
+      return null;
   }
 
-  console.log("[v0] Using RealSessionProvider (NextAuth)")
-  return <RealSessionProvider>{children}</RealSessionProvider>
+  // Render Mock provider if needed
+  if (useMock) {
+    console.log("[v0] Using MockSessionProvider");
+    return <MockSessionProvider>{children}</MockSessionProvider>;
+  }
+
+  // Otherwise, render the Real provider
+  console.log("[v0] Using RealSessionProvider (NextAuth)");
+  return <RealSessionProvider>{children}</RealSessionProvider>;
 }
