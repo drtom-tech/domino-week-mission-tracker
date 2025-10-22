@@ -1,11 +1,10 @@
 "use server"
 
-import { getServerSession } from "next-auth"
-import { authOptions } from "./auth"
+import { auth } from "./auth"
 
 export async function getSession() {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
     return session
   } catch (error) {
     console.error("[v0] Error getting session:", error)
