@@ -3,10 +3,14 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { Pool } from "@neondatabase/serverless";
-import { NeonAdapter } from "@auth/neon-adapter";
+// Correct Import: Use default import for NeonAdapter
+import NeonAdapter from "@auth/neon-adapter";
 
-// Initialize the Neon DB pool for the adapter
+// Initialize the Neon DB pool. DO NOT create it inside the NextAuth handler when using CredentialsProvider.
+// Create it once here. The adapter pattern differs slightly from the lazy init pattern.
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// Pass the Pool instance directly to the NeonAdapter default export
 const adapter = NeonAdapter(pool);
 
 // Helper function to verify password hash using Web Crypto API
@@ -20,10 +24,9 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 }
 
 export const authOptions: NextAuthOptions = {
-  // Use the Neon adapter. It handles user/account creation for OAuth providers automatically.
+  // Use the configured Neon adapter
   adapter: adapter,
 
-  // Use JWT strategy for sessions
   session: {
     strategy: "jwt",
   },
@@ -45,9 +48,8 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        // The authorize function runs *before* the adapter can be used.
-        // So, we query the DB directly here using the same pool.
         try {
+          // Use the pool created outside the handler
           const { rows } = await pool.query(
             "SELECT * FROM users WHERE email = $1",
             [credentials.email]
@@ -56,47 +58,53 @@ export const authOptions: NextAuthOptions = {
 
           if (!user || !user.password_hash) {
             console.log("Authorize: User not found or no password hash.");
-            return null; // User not found or is an OAuth-only user
+            return null;
           }
+
+          // Ensure email is verified (if your logic requires it)
+          // if (!user.email_verified) {
+          //   console.log("Authorize: Email not verified.");
+          //   throw new Error("EMAIL_NOT_VERIFIED"); // Throwing error shows message on signin page
+          // }
 
           const isValid = await verifyPassword(credentials.password, user.password_hash);
 
           if (!isValid) {
             console.log("Authorize: Invalid password.");
-            return null; // Password incorrect
+            return null;
           }
 
           console.log("Authorize: Credentials valid, returning user.");
-          // Return the user object that matches NextAuth's expectations
           return {
-            id: user.id,
+            id: user.id.toString(), // Ensure ID is a string for NextAuth
             email: user.email,
             name: user.name,
             image: user.image,
           };
-        } catch (dbError) {
+        } catch (dbError: any) {
+             // Handle specific errors like "EMAIL_NOT_VERIFIED"
+             if (dbError.message === "EMAIL_NOT_VERIFIED") {
+                 throw dbError; // Re-throw to show on signin page
+             }
           console.error("Database error during authorize:", dbError);
-          return null;
+          // For generic errors, return null or throw a generic error
+          // throw new Error("AUTHENTICATION_FAILED");
+          return null; // Returning null shows a generic error message
         }
       },
     }),
   ],
 
   callbacks: {
-    // The `signIn` callback is no longer needed. The adapter handles Google user creation automatically.
-
-    // This JWT callback is called when a token is created.
-    // We add the user's ID to the token here.
     async jwt({ token, user }) {
+      // Add user ID from authorize or OAuth flow to the token
       if (user) {
         token.id = user.id;
       }
       return token;
     },
-
-    // The session callback is called when a session is checked.
-    // We add the user ID from the token to the session object.
     async session({ session, token }) {
+      // Add user ID from token to the session object
       if (session.user && token.id) {
         session.user.id = token.id as string;
       }
@@ -106,7 +114,9 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/auth/signin",
+     // Add error page if you have one, to handle authorize throws
+     error: '/auth/error', // Optional: route to display auth errors
   },
 
-  secret: process.env.AUTH_SECRET, // Use AUTH_SECRET for Vercel
+  secret: process.env.AUTH_SECRET,
 };
