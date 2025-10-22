@@ -2,7 +2,7 @@ import NextAuth from "next-auth"
 import Google from "next-auth/providers/google"
 import Credentials from "next-auth/providers/credentials"
 import { Pool } from "@neondatabase/serverless"
-import NeonAdapter from "@auth/neon-adapter"
+import { NeonAdapter } from "@auth/neon-adapter"
 
 const databaseUrl = process.env.DATABASE_URL || "postgresql://placeholder"
 
