@@ -1,23 +1,33 @@
-import type { NextAuthOptions } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
-import CredentialsProvider from "next-auth/providers/credentials"
-import { sql } from "@/lib/db"
+// Path: lib/auth.ts
+import type { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { Pool } from "@neondatabase/serverless";
+import { NeonAdapter } from "@auth/neon-adapter";
 
-function isV0Preview() {
-  const vercelUrl = process.env.VERCEL_URL || ""
-  return vercelUrl.includes("vusercontent.net") || vercelUrl.includes("v0.app")
-}
+// Initialize the Neon DB pool for the adapter
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = NeonAdapter(pool);
 
+// Helper function to verify password hash using Web Crypto API
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(password)
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const computedHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
-  return computedHash === hash
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const computedHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return computedHash === hash;
 }
 
 export const authOptions: NextAuthOptions = {
+  // Use the Neon adapter. It handles user/account creation for OAuth providers automatically.
+  adapter: adapter,
+
+  // Use JWT strategy for sessions
+  session: {
+    strategy: "jwt",
+  },
+
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -30,113 +40,67 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          console.log("Authorize: Missing credentials");
+          return null;
+        }
+
+        // The authorize function runs *before* the adapter can be used.
+        // So, we query the DB directly here using the same pool.
         try {
-          if (!credentials?.email || !credentials?.password) {
-            return null
-          }
-
-          // In preview mode, return a mock user for any credentials
-          if (isV0Preview()) {
-            console.log("[v0] Auth in preview mode - using mock user")
-            return {
-              id: "1",
-              email: credentials.email,
-              name: "Preview User",
-              image: null,
-            }
-          }
-
-          const [user] = await sql`
-            SELECT * FROM users WHERE email = ${credentials.email}
-          `
+          const { rows } = await pool.query(
+            "SELECT * FROM users WHERE email = $1",
+            [credentials.email]
+          );
+          const user = rows[0];
 
           if (!user || !user.password_hash) {
-            return null
+            console.log("Authorize: User not found or no password hash.");
+            return null; // User not found or is an OAuth-only user
           }
 
-          if (!user.email_verified) {
-            throw new Error("Please verify your email")
-          }
+          const isValid = await verifyPassword(credentials.password, user.password_hash);
 
-          const isValid = await verifyPassword(credentials.password, user.password_hash)
           if (!isValid) {
-            return null
+            console.log("Authorize: Invalid password.");
+            return null; // Password incorrect
           }
 
+          console.log("Authorize: Credentials valid, returning user.");
+          // Return the user object that matches NextAuth's expectations
           return {
-            id: user.id.toString(),
+            id: user.id,
             email: user.email,
             name: user.name,
             image: user.image,
-          }
-        } catch (error) {
-          console.error("[v0] Auth error:", error)
-          return null
+          };
+        } catch (dbError) {
+          console.error("Database error during authorize:", dbError);
+          return null;
         }
       },
     }),
   ],
 
   callbacks: {
-    async signIn({ user, account, profile }) {
-      try {
-        // Skip database operations in preview mode
-        if (isV0Preview()) {
-          console.log("[v0] SignIn callback in preview mode - skipping database")
-          return true
-        }
+    // The `signIn` callback is no longer needed. The adapter handles Google user creation automatically.
 
-        // Handle Google OAuth user creation
-        if (account?.provider === "google") {
-          const [existingUser] = await sql`
-            SELECT * FROM users WHERE email = ${user.email}
-          `
-
-          if (!existingUser) {
-            // Create new user
-            const [newUser] = await sql`
-              INSERT INTO users (email, name, image, email_verified)
-              VALUES (${user.email}, ${user.name}, ${user.image}, CURRENT_TIMESTAMP)
-              RETURNING *
-            `
-            user.id = newUser.id.toString()
-
-            // Create account record
-            await sql`
-              INSERT INTO accounts (
-                user_id, type, provider, provider_account_id,
-                access_token, expires_at, token_type, scope, id_token
-              ) VALUES (
-                ${newUser.id}, ${account.type}, ${account.provider},
-                ${account.providerAccountId}, ${account.access_token},
-                ${account.expires_at}, ${account.token_type},
-                ${account.scope}, ${account.id_token}
-              )
-            `
-          } else {
-            user.id = existingUser.id.toString()
-          }
-        }
-        return true
-      } catch (error) {
-        console.error("[v0] SignIn callback error:", error)
-        // Return true in preview mode to allow sign in despite errors
-        return isV0Preview()
-      }
-    },
-
-    async jwt({ token, user, account }) {
+    // This JWT callback is called when a token is created.
+    // We add the user's ID to the token here.
+    async jwt({ token, user }) {
       if (user) {
-        token.id = user.id
+        token.id = user.id;
       }
-      return token
+      return token;
     },
 
+    // The session callback is called when a session is checked.
+    // We add the user ID from the token to the session object.
     async session({ session, token }) {
       if (session.user && token.id) {
-        session.user.id = token.id as string
+        session.user.id = token.id as string;
       }
-      return session
+      return session;
     },
   },
 
@@ -144,9 +108,5 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
 
-  session: {
-    strategy: "jwt",
-  },
-
-  secret: process.env.NEXTAUTH_SECRET,
-}
+  secret: process.env.AUTH_SECRET, // Use AUTH_SECRET for Vercel
+};
