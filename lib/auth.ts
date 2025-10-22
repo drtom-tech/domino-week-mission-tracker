@@ -1,19 +1,24 @@
-import NextAuth from "next-auth"
-import Google from "next-auth/providers/google"
+import { auth } from "@clerk/nextjs/server"
 
-// Minimal auth configuration for server-side session access
-const { auth, handlers, signIn, signOut } = NextAuth({
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    }),
-  ],
-  session: {
-    strategy: "jwt",
-  },
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  trustHost: true,
-})
+/**
+ * Get the current authenticated user's Clerk ID
+ * Throws an error if the user is not authenticated
+ */
+export async function requireAuth() {
+  const { userId } = await auth()
 
-export { auth, handlers, signIn, signOut }
+  if (!userId) {
+    throw new Error("Unauthorized - Please sign in")
+  }
+
+  return userId
+}
+
+/**
+ * Get the current authenticated user's Clerk ID
+ * Returns null if the user is not authenticated
+ */
+export async function getAuthUserId() {
+  const { userId } = await auth()
+  return userId
+}
