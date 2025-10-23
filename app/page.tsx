@@ -1,4 +1,5 @@
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
@@ -12,7 +13,10 @@ export default async function Home() {
   const isPreview = host.includes("v0.app") || host.includes("vusercontent.net")
 
   if (isPreview) {
-    redirect("/dashboard")
+    const { userId } = await auth()
+    if (userId) {
+      redirect("/dashboard")
+    }
   }
 
   return (
