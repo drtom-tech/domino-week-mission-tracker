@@ -1,4 +1,5 @@
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
@@ -7,6 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowRight, CheckCircle2 } from "lucide-react"
 
 export default async function Home() {
+  const { userId } = await auth()
+
+  if (userId) {
+    redirect("/dashboard")
+  }
+
   const headersList = await headers()
   const host = headersList.get("host") || ""
   const isPreview = host.includes("v0.app") || host.includes("vusercontent.net")
@@ -32,7 +39,7 @@ export default async function Home() {
             <SignedOut>
               <div className="flex justify-center">
                 <div className="border-2 border-slate-300 rounded-lg px-8 py-2">
-                  <SignInButton mode="redirect" forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard" />
+                  <SignInButton fallbackRedirectUrl="/dashboard" />
                 </div>
               </div>
 
