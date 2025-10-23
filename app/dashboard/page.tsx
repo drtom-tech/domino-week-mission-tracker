@@ -11,8 +11,11 @@ import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
 import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { useSession, signIn, signOut } from "next-auth/react"
+import { User } from "lucide-react"
 
 export default function Home() {
+  const { data: session, status } = useSession()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
 
@@ -58,7 +61,7 @@ export default function Home() {
     )
   }
 
-  if ((isLoading && !tasks) || !currentWeekStart) {
+  if ((isLoading && !tasks) || !currentWeekStart || status === "loading") {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -75,6 +78,13 @@ export default function Home() {
                 <Link href="/mission" className="hidden md:block">
                   <Button variant="outline">Mission Board</Button>
                 </Link>
+                {!session ? (
+                  <Button variant="ghost" onClick={() => signIn()}>Sign In</Button>
+                ) : (
+                  <Button variant="ghost" size="icon">
+                    <User className="h-5 w-5" />
+                  </Button>
+                )}
                 <Sheet>
                   <SheetTrigger asChild className="md:hidden">
                     <Button variant="ghost" size="icon">
@@ -121,6 +131,13 @@ export default function Home() {
               <Link href="/mission" className="hidden md:block">
                 <Button variant="outline">Mission Board</Button>
               </Link>
+              {!session ? (
+                <Button variant="ghost" onClick={() => signIn()}>Sign In</Button>
+              ) : (
+                <Button variant="ghost" size="icon" onClick={() => signOut()}>
+                  <User className="h-5 w-5" />
+                </Button>
+              )}
               <Sheet>
                 <SheetTrigger asChild className="md:hidden">
                   <Button variant="ghost" size="icon">
