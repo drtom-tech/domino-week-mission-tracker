@@ -20,7 +20,7 @@ export default function Home() {
           </CardHeader>
           <CardContent className="space-y-4">
             <SignedOut>
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
                 <Button size="lg" className="w-full" variant="default">
                   Sign in to continue
                   <ArrowRight className="ml-2 h-4 w-4" />
