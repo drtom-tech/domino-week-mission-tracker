@@ -1,43 +1,38 @@
 "use client"
 
 import { useEffect } from "react"
-import { useAuth } from "@/lib/use-auth"
+import { useUser } from "@clerk/nextjs"
 import { useRouter } from "next/navigation"
 import { getTasks } from "../actions/tasks"
 import { MissionBoard } from "@/components/mission-board"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, LogOut } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { signOutUser } from "@/lib/auth-helpers"
+import { UserButton } from "@clerk/nextjs"
 
 export default function MissionPage() {
-  const { data: session, status } = useAuth()
-
+  const { user, isLoaded } = useUser()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/auth/signin")
+    if (isLoaded && !user) {
+      router.push("/sign-in")
     }
-  }, [status, router])
+  }, [isLoaded, user, router])
 
   const {
     data: tasks,
     error,
     isLoading,
-  } = useSWR(status === "authenticated" ? "mission-tasks" : null, () => getTasks(), {
+  } = useSWR(user ? "mission-tasks" : null, () => getTasks(), {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
   })
 
-  const handleSignOut = async () => {
-    await signOutUser()
-  }
-
-  if (status === "loading" || isLoading) {
+  if (!isLoaded || isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -55,7 +50,7 @@ export default function MissionPage() {
     )
   }
 
-  if (status === "unauthenticated") {
+  if (!user) {
     return null
   }
 
@@ -90,9 +85,7 @@ export default function MissionPage() {
             <Link href="/">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
-              <LogOut className="h-5 w-5" />
-            </Button>
+            <UserButton />
           </div>
         </div>
       </header>
