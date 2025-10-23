@@ -1,11 +1,10 @@
-import { SignedIn, SignedOut } from "@clerk/nextjs"
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
-import { SignInButtonWrapper } from "./sign-in-button-wrapper"
 
 export default async function Home() {
   const { userId } = await auth()
@@ -30,7 +29,9 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <SignInButtonWrapper />
+                <SignInButton mode="modal">
+                  <Button size="lg">Sign In</Button>
+                </SignInButton>
               </div>
 
               <div className="pt-4 border-t border-slate-200">
