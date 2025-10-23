@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut } from "@clerk/nextjs"
+import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { redirect } from "next/navigation"
@@ -29,11 +29,9 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <Link href="/auth/signin">
-                  <Button size="lg" className="border-2 border-slate-300 rounded-lg px-8">
-                    Sign In with Google
-                  </Button>
-                </Link>
+                <SignInButton mode="modal">
+                  <Button size="lg">Sign In</Button>
+                </SignInButton>
               </div>
 
               <div className="pt-4 border-t border-slate-200">
