@@ -31,8 +31,8 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <div className="border-2 border-slate-300 rounded-md">
-                  <SignInButton />
+                <div className="border-2 border-slate-300 rounded-lg px-8 py-2">
+                  <SignInButton mode="redirect" forceRedirectUrl="/dashboard" signUpForceRedirectUrl="/dashboard" />
                 </div>
               </div>
 
