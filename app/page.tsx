@@ -39,7 +39,7 @@ export default async function Home() {
             <SignedOut>
               <div className="flex justify-center">
                 <div className="border-2 border-slate-300 rounded-lg px-8 py-2">
-                  <SignInButton fallbackRedirectUrl="/dashboard" />
+                  <SignInButton forceRedirectUrl="/" />
                 </div>
               </div>
 
