@@ -21,9 +21,12 @@ export default function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
-                <Button size="lg" className="w-full" variant="default">
+                <Button
+                  size="lg"
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-6 text-lg shadow-md hover:shadow-lg transition-all"
+                >
                   Sign in to continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </SignInButton>
 
