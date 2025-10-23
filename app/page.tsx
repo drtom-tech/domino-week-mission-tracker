@@ -30,12 +30,9 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="space-y-4">
             <SignedOut>
-              <SignInButton>
-                <Button size="lg" className="w-full border-2 border-slate-300">
-                  Sign in to continue
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </SignInButton>
+              <div className="flex justify-center">
+                <SignInButton />
+              </div>
 
               <div className="pt-4 border-t border-slate-200">
                 <p className="text-sm text-slate-600 mb-3 text-center">What you'll get:</p>
