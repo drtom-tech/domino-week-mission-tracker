@@ -1,7 +1,8 @@
 // auth.ts
-import NextAuth from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { db } from "./lib/db"; 
+import GoogleProvider from "next-auth/providers/google";
 
 import { 
   users, 
@@ -10,9 +11,7 @@ import {
   verificationTokens
 } from "./drizzle/schema"; 
 
-import Google from "next-auth/providers/google";
-
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const authOptions: NextAuthOptions = {
   adapter: DrizzleAdapter(db, {
     usersTable: users,
     accountsTable: accounts,
@@ -20,7 +19,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     verificationTokensTable: verificationTokens,
   }),
   providers: [
-    Google({
+    GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!, 
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
@@ -36,6 +35,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-});
-
-export const { GET, POST } = handlers;
+};
