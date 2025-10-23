@@ -1,13 +1,5 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server"
-
-const isPublicRoute = createRouteMatcher(["/", "/dashboard(.*)", "/mission(.*)", "/sign-in(.*)", "/sign-up(.*)"])
-
-export default clerkMiddleware((auth, req) => {
-  if (!isPublicRoute(req)) {
-    auth.protect()
-  }
-})
+export { default } from "next-auth/middleware"
 
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: ["/dashboard/:path*", "/mission/:path*"],
 }
