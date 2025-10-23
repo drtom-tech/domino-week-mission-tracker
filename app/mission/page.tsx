@@ -8,9 +8,24 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { useState, useEffect, useMemo } from "react"
+import { getCurrentQuarter, formatQuarter, addQuarters } from "@/lib/utils"
 
 export default function MissionPage() {
+  const [quarterOffset, setQuarterOffset] = useState(0)
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
+
+  const currentQuarter = useMemo(() => {
+    const { year, quarter } = getCurrentQuarter()
+    return addQuarters(year, quarter, quarterOffset)
+  }, [quarterOffset])
+
+  const quarterLabel = formatQuarter(currentQuarter.year, currentQuarter.quarter)
+
+  useEffect(() => {
+    setPortalContainer(document.getElementById("quarter-nav-container"))
+  }, [])
+
   const {
     data: tasks,
     error,
@@ -26,20 +41,13 @@ export default function MissionPage() {
         <header className="border-b">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Mission Board</h1>
+            <div className="flex-1 flex justify-center">
+              <div id="quarter-nav-container"></div>
+            </div>
             <div className="flex items-center gap-2">
               <Link href="/dashboard">
                 <Button variant="outline">Kanban Board</Button>
               </Link>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <Button variant="outline" size="sm">
-                    Sign in
-                  </Button>
-                </SignInButton>
-              </SignedOut>
             </div>
           </div>
         </header>
@@ -77,25 +85,25 @@ export default function MissionPage() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Mission Board</h1>
+          <div className="flex-1 flex justify-center">
+            <div id="quarter-nav-container"></div>
+          </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="outline" size="sm">
-                  Sign in
-                </Button>
-              </SignInButton>
-            </SignedOut>
           </div>
         </div>
       </header>
       <main>
-        <MissionBoard tasks={tasks || []} />
+        <MissionBoard
+          tasks={tasks || []}
+          currentQuarter={currentQuarter}
+          quarterLabel={quarterLabel}
+          quarterOffset={quarterOffset}
+          onQuarterOffsetChange={setQuarterOffset}
+          portalContainer={portalContainer}
+        />
       </main>
     </div>
   )

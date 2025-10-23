@@ -1,13 +1,6 @@
 "use server"
 
-import { auth } from "@clerk/nextjs/server"
-
 export async function getUserId(): Promise<string> {
-  const { userId } = await auth()
-
-  if (!userId) {
-    throw new Error("Unauthorized - Please sign in")
-  }
-
-  return userId
+  // Return a default user ID since we're not using authentication
+  return "default-user"
 }

@@ -69,3 +69,31 @@ export function extractDate(dateValue: string | null | undefined): string | null
     return null
   }
 }
+
+export function getCurrentQuarter(): { year: number; quarter: number } {
+  const now = new Date()
+  const month = now.getMonth() + 1 // 1-12
+  const quarter = Math.ceil(month / 3)
+  return { year: now.getFullYear(), quarter }
+}
+
+export function formatQuarter(year: number, quarter: number): string {
+  return `Q${quarter} ${year}`
+}
+
+export function addQuarters(year: number, quarter: number, offset: number): { year: number; quarter: number } {
+  let newQuarter = quarter + offset
+  let newYear = year
+
+  while (newQuarter > 4) {
+    newQuarter -= 4
+    newYear += 1
+  }
+
+  while (newQuarter < 1) {
+    newQuarter += 4
+    newYear -= 1
+  }
+
+  return { year: newYear, quarter: newQuarter }
+}

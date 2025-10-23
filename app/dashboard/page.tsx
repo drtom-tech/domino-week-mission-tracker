@@ -11,7 +11,6 @@ import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
 import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs"
 
 export default function Home() {
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
@@ -76,14 +75,6 @@ export default function Home() {
                 <Link href="/mission" className="hidden md:block">
                   <Button variant="outline">Mission Board</Button>
                 </Link>
-                <SignedOut>
-                  <SignInButton mode="modal">
-                    <Button variant="ghost">Sign In</Button>
-                  </SignInButton>
-                </SignedOut>
-                <SignedIn>
-                  <UserButton />
-                </SignedIn>
                 <Sheet>
                   <SheetTrigger asChild className="md:hidden">
                     <Button variant="ghost" size="icon">
@@ -130,14 +121,6 @@ export default function Home() {
               <Link href="/mission" className="hidden md:block">
                 <Button variant="outline">Mission Board</Button>
               </Link>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <Button variant="ghost">Sign In</Button>
-                </SignInButton>
-              </SignedOut>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
               <Sheet>
                 <SheetTrigger asChild className="md:hidden">
                   <Button variant="ghost" size="icon">
