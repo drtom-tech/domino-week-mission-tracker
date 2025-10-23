@@ -31,7 +31,9 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <SignInButton />
+                <div className="border-2 border-slate-300 rounded-md">
+                  <SignInButton />
+                </div>
               </div>
 
               <div className="pt-4 border-t border-slate-200">
