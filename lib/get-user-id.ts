@@ -1,6 +1,7 @@
 "use server"
 
-import { auth } from "@clerk/nextjs/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { headers } from "next/headers"
 
 export async function getUserId(): Promise<string> {
@@ -14,12 +15,13 @@ export async function getUserId(): Promise<string> {
     return "preview-user-1"
   }
 
-  // In production, use Clerk authentication
-  const { userId } = await auth()
+  // In production, use NextAuth authentication
+  const session = await getServerSession(authOptions)
 
-  if (!userId) {
+  if (!session?.user?.email) {
     throw new Error("Unauthorized - Please sign in")
   }
 
-  return userId
+  // Use email as the user ID for NextAuth
+  return session.user.email
 }

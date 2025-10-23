@@ -5,12 +5,13 @@ import { MissionBoard } from "@/components/mission-board"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, User } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { useSession, signIn, signOut } from "next-auth/react"
 
 export default function MissionPage() {
+  const { data: session, status } = useSession()
   const {
     data: tasks,
     error,
@@ -20,7 +21,7 @@ export default function MissionPage() {
     revalidateOnReconnect: true,
   })
 
-  if (isLoading) {
+  if (isLoading || status === "loading") {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -30,16 +31,15 @@ export default function MissionPage() {
               <Link href="/dashboard">
                 <Button variant="outline">Kanban Board</Button>
               </Link>
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <SignInButton mode="modal">
-                  <Button variant="outline" size="sm">
-                    Sign in
-                  </Button>
-                </SignInButton>
-              </SignedOut>
+              {!session ? (
+                <Button variant="outline" size="sm" onClick={() => signIn()}>
+                  Sign in
+                </Button>
+              ) : (
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+              )}
             </div>
           </div>
         </header>
@@ -81,16 +81,15 @@ export default function MissionPage() {
             <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
-                <Button variant="outline" size="sm">
-                  Sign in
-                </Button>
-              </SignInButton>
-            </SignedOut>
+            {!session ? (
+              <Button variant="outline" size="sm" onClick={() => signIn()}>
+                Sign in
+              </Button>
+            ) : (
+              <Button variant="ghost" size="icon" onClick={() => signOut()}>
+                <User className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
