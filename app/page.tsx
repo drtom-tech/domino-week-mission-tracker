@@ -2,7 +2,6 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { headers } from "next/headers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
@@ -13,14 +12,7 @@ export default async function Home() {
   if (userId) {
     redirect("/dashboard")
   }
-
-  const headersList = await headers()
-  const host = headersList.get("host") || ""
-  const isPreview = host.includes("v0.app") || host.includes("vusercontent.net")
-
-  if (isPreview) {
-    redirect("/dashboard")
-  }
+  // </CHANGE>
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
@@ -38,9 +30,12 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <SignInButton mode="modal">
-                  <Button size="lg">Sign In with Google</Button>
+                <SignInButton forceRedirectUrl="/dashboard">
+                  <Button size="lg" className="border-2 border-slate-300 rounded-lg px-8">
+                    Sign In with Google
+                  </Button>
                 </SignInButton>
+                {/* </CHANGE> */}
               </div>
 
               <div className="pt-4 border-t border-slate-200">
