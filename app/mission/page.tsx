@@ -9,9 +9,25 @@ import { AlertCircle, User } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
 import { useSession, signIn, signOut } from "next-auth/react"
+import { useState, useEffect, useMemo } from "react"
+import { getCurrentQuarter, formatQuarter, addQuarters } from "@/lib/utils"
 
 export default function MissionPage() {
   const { data: session, status } = useSession()
+  const [quarterOffset, setQuarterOffset] = useState(0)
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
+
+  const currentQuarter = useMemo(() => {
+    const { year, quarter } = getCurrentQuarter()
+    return addQuarters(year, quarter, quarterOffset)
+  }, [quarterOffset])
+
+  const quarterLabel = formatQuarter(currentQuarter.year, currentQuarter.quarter)
+
+  useEffect(() => {
+    setPortalContainer(document.getElementById("quarter-nav-container"))
+  }, [])
+
   const {
     data: tasks,
     error,
@@ -94,7 +110,13 @@ export default function MissionPage() {
         </div>
       </header>
       <main>
-        <MissionBoard tasks={tasks || []} />
+        <MissionBoard 
+          tasks={tasks || []} 
+          quarterOffset={quarterOffset}
+          onQuarterOffsetChange={setQuarterOffset}
+          quarterLabel={quarterLabel}
+          portalContainer={portalContainer}
+        />
       </main>
     </div>
   )

@@ -4,16 +4,30 @@ import type { Task } from "@/lib/db"
 import { KanbanColumn } from "./kanban-column"
 import { AddTaskDialog } from "./add-task-dialog"
 import { MobileColumnSelector } from "./mobile-column-selector"
+import { QuarterNavigator } from "./quarter-navigator"
 import { moveTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useState } from "react"
+import { createPortal } from "react-dom"
 
 interface MissionBoardProps {
   tasks: Task[]
+  currentQuarter: { year: number; quarter: number }
+  quarterLabel: string
+  quarterOffset: number
+  onQuarterOffsetChange: (offset: number) => void
+  portalContainer: HTMLElement | null
 }
 
-export function MissionBoard({ tasks }: MissionBoardProps) {
+export function MissionBoard({
+  tasks,
+  currentQuarter,
+  quarterLabel,
+  quarterOffset,
+  onQuarterOffsetChange,
+  portalContainer,
+}: MissionBoardProps) {
   const [mobileColumn, setMobileColumn] = useState("mission_list")
 
   const getTasksByColumn = (columnId: string) => {
@@ -35,10 +49,10 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
   }
 
   const mobileColumns = [
-    { id: "mission_list", label: "Mission List" },
+    { id: "mission_list", label: "Create Mission" }, // Renamed from "Mission List"
     { id: "working_on", label: "Working On" },
-    { id: "completed", label: "Completed" },
     { id: "yearly_targets", label: "Yearly Targets" },
+    { id: "completed", label: "Completed" },
   ]
 
   const renderMobileView = () => {
@@ -54,7 +68,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           tasks={getTasksByColumn(selectedCol.id)}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton={selectedCol.id === "mission_list" || selectedCol.id === "yearly_targets"}
+          showAddButton={selectedCol.id === "mission_list"}
           onAddTask={() => {}}
         />
       </div>
@@ -63,12 +77,23 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
 
   return (
     <>
+      {portalContainer &&
+        createPortal(
+          <QuarterNavigator
+            quarterLabel={quarterLabel}
+            onPreviousQuarter={() => onQuarterOffsetChange(quarterOffset - 1)}
+            onNextQuarter={() => onQuarterOffsetChange(quarterOffset + 1)}
+            onCurrentQuarter={() => onQuarterOffsetChange(0)}
+          />,
+          portalContainer,
+        )}
+
       {renderMobileView()}
 
       <div className="hidden md:grid md:grid-cols-4 gap-6 p-6">
-        {/* Mission List */}
+        {/* Create Mission */}
         <KanbanColumn
-          title="Mission List"
+          title="Create Mission" // Renamed from "Mission List"
           columnId="mission_list"
           tasks={getTasksByColumn("mission_list")}
           allTasks={tasks}
@@ -88,16 +113,6 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           className="md:col-span-1"
         />
 
-        {/* Completed */}
-        <KanbanColumn
-          title="Completed"
-          columnId="completed"
-          tasks={getTasksByColumn("completed")}
-          allTasks={tasks}
-          onDrop={handleDrop}
-          className="md:col-span-1"
-        />
-
         {/* Yearly Targets */}
         <KanbanColumn
           title="Yearly Targets"
@@ -105,8 +120,17 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           tasks={getTasksByColumn("yearly_targets")}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton
           onAddTask={() => {}}
+          className="md:col-span-1"
+        />
+
+        {/* Completed */}
+        <KanbanColumn
+          title="Completed"
+          columnId="completed"
+          tasks={getTasksByColumn("completed")}
+          allTasks={tasks}
+          onDrop={handleDrop}
           className="md:col-span-1"
         />
       </div>
