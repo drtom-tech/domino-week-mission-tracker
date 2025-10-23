@@ -1,8 +1,5 @@
 "use client"
 
-import { useEffect } from "react"
-import { useUser } from "@clerk/nextjs"
-import { useRouter } from "next/navigation"
 import { getTasks } from "../actions/tasks"
 import { MissionBoard } from "@/components/mission-board"
 import { Button } from "@/components/ui/button"
@@ -11,36 +8,39 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { UserButton } from "@clerk/nextjs"
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
 
 export default function MissionPage() {
-  const { user, isLoaded } = useUser()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (isLoaded && !user) {
-      router.push("/sign-in")
-    }
-  }, [isLoaded, user, router])
-
   const {
     data: tasks,
     error,
     isLoading,
-  } = useSWR(user ? "mission-tasks" : null, () => getTasks(), {
+  } = useSWR("mission-tasks", () => getTasks(), {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
   })
 
-  if (!isLoaded || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Mission Board</h1>
-            <Link href="/">
-              <Button variant="outline">Kanban Board</Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard">
+                <Button variant="outline">Kanban Board</Button>
+              </Link>
+              <SignedIn>
+                <UserButton />
+              </SignedIn>
+              <SignedOut>
+                <SignInButton mode="modal">
+                  <Button variant="outline" size="sm">
+                    Sign in
+                  </Button>
+                </SignInButton>
+              </SignedOut>
+            </div>
           </div>
         </header>
         <main>
@@ -48,10 +48,6 @@ export default function MissionPage() {
         </main>
       </div>
     )
-  }
-
-  if (!user) {
-    return null
   }
 
   if (error) {
@@ -82,10 +78,19 @@ export default function MissionPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Mission Board</h1>
           <div className="flex items-center gap-2">
-            <Link href="/">
+            <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            <UserButton />
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <Button variant="outline" size="sm">
+                  Sign in
+                </Button>
+              </SignInButton>
+            </SignedOut>
           </div>
         </div>
       </header>
