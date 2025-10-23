@@ -1,4 +1,4 @@
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
+import { SignedIn, SignedOut } from "@clerk/nextjs"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { headers } from "next/headers"
@@ -30,12 +30,12 @@ export default async function Home() {
           </CardHeader>
           <CardContent className="space-y-4">
             <SignedOut>
-              <SignInButton fallbackRedirectUrl="/dashboard">
-                <Button size="lg" className="w-full">
+              <Link href="/sign-in">
+                <Button size="lg" className="w-full border-2 border-slate-300">
                   Sign in to continue
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-              </SignInButton>
+              </Link>
 
               <div className="pt-4 border-t border-slate-200">
                 <p className="text-sm text-slate-600 mb-3 text-center">What you'll get:</p>
