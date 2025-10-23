@@ -38,9 +38,9 @@ export default async function Home() {
           <CardContent className="space-y-4">
             <SignedOut>
               <div className="flex justify-center">
-                <div className="border-2 border-slate-300 rounded-lg px-8 py-2">
-                  <SignInButton mode="modal" />
-                </div>
+                <SignInButton mode="modal">
+                  <Button size="lg">Sign In with Google</Button>
+                </SignInButton>
               </div>
 
               <div className="pt-4 border-t border-slate-200">
