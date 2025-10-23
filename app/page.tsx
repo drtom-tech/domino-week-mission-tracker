@@ -1,10 +1,20 @@
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs"
 import Link from "next/link"
+import { redirect } from "next/navigation"
+import { headers } from "next/headers"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowRight, CheckCircle2 } from "lucide-react"
 
-export default function Home() {
+export default async function Home() {
+  const headersList = await headers()
+  const host = headersList.get("host") || ""
+  const isPreview = host.includes("v0.app") || host.includes("vusercontent.net")
+
+  if (isPreview) {
+    redirect("/dashboard")
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
       <div className="w-full max-w-md">
