@@ -7,7 +7,7 @@ import {
   users, 
   accounts, 
   sessions, 
-  verificationTokens // <-- THE FIX (was verification_tokens)
+  verificationTokens
 } from "./drizzle/schema"; 
 
 import Google from "next-auth/providers/google";
@@ -17,7 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     usersTable: users,
     accountsTable: accounts,
     sessionsTable: sessions,
-    verificationTokensTable: verificationTokens, // <-- THE FIX (was verification_tokens)
+    verificationTokensTable: verificationTokens,
   }),
   providers: [
     Google({
@@ -30,8 +30,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   callbacks: {
     async session({ session, user }) {
-      session.user.id = user.id;
+      if (session?.user) {
+        session.user.id = user.id;
+      }
       return session;
     },
   },
 });
+
+export const { GET, POST } = handlers;
