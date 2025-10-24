@@ -57,6 +57,7 @@ export default function SignInPage() {
         await mockAuth.signIn(email, password)
         console.log("[v0] Mock auth sign in successful")
         toast.success("Signed in successfully!")
+        await new Promise((resolve) => setTimeout(resolve, 100))
         router.push("/dashboard")
         router.refresh()
       } else {
@@ -99,6 +100,7 @@ export default function SignInPage() {
         await mockAuth.signUp(email, password, name)
         console.log("[v0] Mock auth sign up successful")
         toast.success("Account created successfully!")
+        await new Promise((resolve) => setTimeout(resolve, 100))
         router.push("/dashboard")
         router.refresh()
       } else {
