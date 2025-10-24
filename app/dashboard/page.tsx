@@ -15,7 +15,7 @@ import { AlertCircle, Menu, LogOut, Chrome } from "lucide-react"
 import useSWR from "swr"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
@@ -28,22 +28,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useMockAuth } from "@/lib/mock-auth"
+import { signIn } from "next-auth/react"
 import { toast } from "sonner"
-import { isPreviewEnvironment } from "@/lib/auth-helpers"
 
 export default function Home() {
   const { user, isLoading: authLoading, signOut } = useAuth()
-  const mockAuth = useMockAuth()
   const router = useRouter()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
   const [isSigningIn, setIsSigningIn] = useState(false)
-  const [isPreview, setIsPreview] = useState(false)
-
-  useEffect(() => {
-    setIsPreview(isPreviewEnvironment())
-  }, [])
 
   const handleWeekOffsetChange = (newOffset: number) => {
     console.log("[v0] Week offset changing from", weekOffset, "to", newOffset)
@@ -73,14 +66,8 @@ export default function Home() {
   })
 
   const handleGoogleSignIn = async () => {
-    if (isPreview) {
-      toast.info("Google OAuth is not available in preview. Use email/password instead.")
-      return
-    }
-
     setIsSigningIn(true)
     try {
-      const { signIn } = await import("next-auth/react")
       await signIn("google", { callbackUrl: "/dashboard" })
     } catch (error) {
       toast.error("Failed to sign in with Google")
@@ -97,27 +84,19 @@ export default function Home() {
     const password = formData.get("password") as string
 
     try {
-      if (isPreview) {
-        await mockAuth.signIn(email, password)
-        toast.success("Signed in successfully!")
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        router.refresh()
-      } else {
-        const { signIn } = await import("next-auth/react")
-        const result = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
 
-        if (result?.error) {
-          toast.error("Invalid email or password")
-        } else {
-          router.refresh()
-        }
+      if (result?.error) {
+        toast.error("Invalid email or password")
+      } else {
+        router.refresh()
       }
     } catch (error) {
-      console.error("[v0] Sign in error:", error)
+      console.error("Sign in error:", error)
       toast.error("An error occurred during sign in")
     } finally {
       setIsSigningIn(false)
@@ -134,42 +113,34 @@ export default function Home() {
     const name = formData.get("name") as string
 
     try {
-      if (isPreview) {
-        await mockAuth.signUp(email, password, name)
-        toast.success("Account created successfully!")
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        router.refresh()
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(data.error || "Failed to create account")
+        return
+      }
+
+      toast.success("Account created! Signing you in...")
+
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        toast.error("Account created but failed to sign in. Please try signing in manually.")
       } else {
-        const response = await fetch("/api/auth/signup", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password, name }),
-        })
-
-        const data = await response.json()
-
-        if (!response.ok) {
-          toast.error(data.error || "Failed to create account")
-          return
-        }
-
-        toast.success("Account created! Signing you in...")
-
-        const { signIn } = await import("next-auth/react")
-        const result = await signIn("credentials", {
-          email,
-          password,
-          redirect: false,
-        })
-
-        if (result?.error) {
-          toast.error("Account created but failed to sign in. Please try signing in manually.")
-        } else {
-          router.refresh()
-        }
+        router.refresh()
       }
     } catch (error) {
-      console.error("[v0] Sign up error:", error)
+      console.error("Sign up error:", error)
       toast.error("An error occurred during sign up")
     } finally {
       setIsSigningIn(false)
@@ -193,9 +164,7 @@ export default function Home() {
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">Mission and Door</CardTitle>
-            <CardDescription className="text-center">
-              {isPreview ? "Preview Mode - Sign in with any email/password" : "Sign in to access your kanban board"}
-            </CardDescription>
+            <CardDescription className="text-center">Sign in to access your kanban board</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
@@ -205,49 +174,33 @@ export default function Home() {
               </TabsList>
 
               <TabsContent value="signin" className="space-y-4">
-                {!isPreview && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={handleGoogleSignIn}
-                      disabled={isSigningIn}
-                    >
-                      <Chrome className="mr-2 h-4 w-4" />
-                      Continue with Google
-                    </Button>
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  onClick={handleGoogleSignIn}
+                  disabled={isSigningIn}
+                >
+                  <Chrome className="mr-2 h-4 w-4" />
+                  Continue with Google
+                </Button>
 
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
 
                 <form onSubmit={handleCredentialsSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
-                    <Input
-                      id="signin-email"
-                      name="email"
-                      type="email"
-                      placeholder={isPreview ? "any@email.com" : "you@example.com"}
-                      required
-                    />
+                    <Input id="signin-email" name="email" type="email" placeholder="you@example.com" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signin-password">Password</Label>
-                    <Input
-                      id="signin-password"
-                      name="password"
-                      type="password"
-                      placeholder={isPreview ? "any password" : ""}
-                      required
-                    />
+                    <Input id="signin-password" name="password" type="password" required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSigningIn}>
                     {isSigningIn ? "Signing in..." : "Sign In"}
@@ -256,28 +209,24 @@ export default function Home() {
               </TabsContent>
 
               <TabsContent value="signup" className="space-y-4">
-                {!isPreview && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full bg-transparent"
-                      onClick={handleGoogleSignIn}
-                      disabled={isSigningIn}
-                    >
-                      <Chrome className="mr-2 h-4 w-4" />
-                      Continue with Google
-                    </Button>
+                <Button
+                  variant="outline"
+                  className="w-full bg-transparent"
+                  onClick={handleGoogleSignIn}
+                  disabled={isSigningIn}
+                >
+                  <Chrome className="mr-2 h-4 w-4" />
+                  Continue with Google
+                </Button>
 
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                  </div>
+                </div>
 
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
@@ -286,24 +235,11 @@ export default function Home() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      name="email"
-                      type="email"
-                      placeholder={isPreview ? "any@email.com" : "you@example.com"}
-                      required
-                    />
+                    <Input id="signup-email" name="email" type="email" placeholder="you@example.com" required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      name="password"
-                      type="password"
-                      placeholder={isPreview ? "any password" : ""}
-                      required
-                      minLength={isPreview ? 1 : 6}
-                    />
+                    <Input id="signup-password" name="password" type="password" required minLength={6} />
                   </div>
                   <Button type="submit" className="w-full" disabled={isSigningIn}>
                     {isSigningIn ? "Creating account..." : "Create Account"}
