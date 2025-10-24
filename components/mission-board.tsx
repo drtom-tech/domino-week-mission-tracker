@@ -37,8 +37,8 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
   const mobileColumns = [
     { id: "mission_list", label: "Mission List" },
     { id: "working_on", label: "Working On" },
-    { id: "completed", label: "Completed" },
     { id: "yearly_targets", label: "Yearly Targets" },
+    { id: "completed", label: "Completed" },
   ]
 
   const renderMobileView = () => {
@@ -88,16 +88,6 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           className="md:col-span-1"
         />
 
-        {/* Completed */}
-        <KanbanColumn
-          title="Completed"
-          columnId="completed"
-          tasks={getTasksByColumn("completed")}
-          allTasks={tasks}
-          onDrop={handleDrop}
-          className="md:col-span-1"
-        />
-
         {/* Yearly Targets */}
         <KanbanColumn
           title="Yearly Targets"
@@ -107,6 +97,16 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           onDrop={handleDrop}
           showAddButton
           onAddTask={() => {}}
+          className="md:col-span-1"
+        />
+
+        {/* Completed */}
+        <KanbanColumn
+          title="Completed"
+          columnId="completed"
+          tasks={getTasksByColumn("completed")}
+          allTasks={tasks}
+          onDrop={handleDrop}
           className="md:col-span-1"
         />
       </div>
