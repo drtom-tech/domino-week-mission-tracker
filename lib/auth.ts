@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
+  secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
   adapter: DrizzleAdapter(db) as any,
   providers: [
     GoogleProvider({
