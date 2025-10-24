@@ -4,8 +4,7 @@ import { KanbanBoard } from "@/components/kanban-board"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import useSWR from "swr"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
@@ -17,45 +16,81 @@ const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
 
 const MOCK_TASKS = [
   {
-    id: "1",
+    id: 1,
     title: "Review project requirements",
     description: "Go through the project specs and create a task list",
-    status: "todo" as const,
-    week_start: formatWeekStart(new Date()),
-    day_of_week: 1,
+    label: "To-Do" as const,
+    column_name: "hot_list",
+    position: 0,
+    parent_id: null,
+    completed: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    completed_at: null,
+    week_start_date: null,
+    linked_task_id: null,
+    origin_column: null,
+    is_moved_to_hitlist: null,
   },
   {
-    id: "2",
+    id: 2,
     title: "Design database schema",
     description: "Create the initial database design",
-    status: "in_progress" as const,
-    week_start: formatWeekStart(new Date()),
-    day_of_week: 2,
+    label: "Door" as const,
+    column_name: "the_door",
+    position: 0,
+    parent_id: null,
+    completed: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    completed_at: null,
+    week_start_date: formatWeekStart(new Date()),
+    linked_task_id: null,
+    origin_column: null,
+    is_moved_to_hitlist: null,
   },
   {
-    id: "3",
+    id: 3,
     title: "Setup development environment",
     description: "Install dependencies and configure tools",
-    status: "done" as const,
-    week_start: formatWeekStart(new Date()),
-    day_of_week: 1,
+    label: "Hit" as const,
+    column_name: "hit_list_mon",
+    position: 0,
+    parent_id: null,
+    completed: false,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    completed_at: null,
+    week_start_date: formatWeekStart(new Date()),
+    linked_task_id: null,
+    origin_column: null,
+    is_moved_to_hitlist: null,
+  },
+  {
+    id: 4,
+    title: "Write unit tests",
+    description: "Add test coverage for core functionality",
+    label: "Hit" as const,
+    column_name: "done",
+    position: 0,
+    parent_id: null,
+    completed: true,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    completed_at: new Date().toISOString(),
+    week_start_date: formatWeekStart(new Date()),
+    linked_task_id: null,
+    origin_column: "hit_list_fri",
+    is_moved_to_hitlist: null,
   },
 ]
 
-export default function Home() {
+export default function Dashboard() {
   const { data: session, status } = useSession()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
 
   const handleWeekOffsetChange = (newOffset: number) => {
-    console.log("[v0] Week offset changing from", weekOffset, "to", newOffset)
-    console.trace("[v0] Week offset change stack trace")
     setWeekOffset(newOffset)
   }
 
@@ -66,7 +101,6 @@ export default function Home() {
     const base = parseDateLocal(baseWeekStart)
     const offsetDate = addWeeks(base, weekOffset)
     const result = formatWeekStart(offsetDate)
-    console.log("[v0] Calculated currentWeekStart:", result, "from weekOffset:", weekOffset)
     return result
   }, [baseWeekStart, weekOffset])
 
@@ -80,27 +114,15 @@ export default function Home() {
     IS_PREVIEW ? null : () => getTasks(currentWeekStart),
     {
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
-      fallbackData: IS_PREVIEW ? MOCK_TASKS : undefined,
+      revalidateOnReconnect: false,
     },
   )
 
-  if (error && !IS_PREVIEW) {
-    return (
-      <div className="min-h-screen bg-background p-8">
-        <Alert variant="destructive" className="max-w-2xl mx-auto">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error Loading Tasks</AlertTitle>
-          <AlertDescription className="mt-2">
-            <p>There was an error loading your tasks. Please try refreshing the page.</p>
-            <p className="mt-2 text-sm text-muted-foreground">If this problem persists, please contact support.</p>
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
+  // Use mock data in preview mode, real data in production
+  const displayTasks = IS_PREVIEW ? MOCK_TASKS : tasks || []
+  const isLoadingData = !IS_PREVIEW && isLoading && !tasks
 
-  if ((isLoading && !tasks) || !currentWeekStart) {
+  if (isLoadingData || !currentWeekStart) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -211,12 +233,11 @@ export default function Home() {
       </header>
       <main>
         <KanbanBoard
-          tasks={tasks || []}
+          tasks={displayTasks}
           currentWeekStart={currentWeekStart}
           weekOffset={weekOffset}
           onWeekOffsetChange={handleWeekOffsetChange}
           onTasksChange={() => {
-            console.log("[v0] onTasksChange called, current weekOffset:", weekOffset)
             if (!IS_PREVIEW) {
               mutate()
             }
