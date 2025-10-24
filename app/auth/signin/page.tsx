@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE === "true"
+
 const MOCK_CREDENTIALS = {
   email: "test@example.com",
   password: "password123",
@@ -26,12 +28,23 @@ export default function SignInPage() {
     setIsLoading(true)
     setError("")
 
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    setAuthMethod("google")
-    setIsAuthenticated(true)
-    setIsLoading(false)
+    if (IS_PREVIEW) {
+      // Mock authentication for preview
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      setAuthMethod("google")
+      setIsAuthenticated(true)
+      setIsLoading(false)
+    } else {
+      // Real NextAuth authentication for production
+      try {
+        const { signIn } = await import("next-auth/react")
+        await signIn("google", { callbackUrl: "/" })
+      } catch (err) {
+        console.error("[v0] Google sign-in error:", err)
+        setError("Failed to sign in with Google")
+        setIsLoading(false)
+      }
+    }
   }
 
   const handleCredentialsSignIn = async (e: React.FormEvent) => {
@@ -39,28 +52,60 @@ export default function SignInPage() {
     setIsLoading(true)
     setError("")
 
-    // Simulate API call delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    if (IS_PREVIEW) {
+      // Mock authentication for preview
+      await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    if (email === MOCK_CREDENTIALS.email && password === MOCK_CREDENTIALS.password) {
-      setAuthMethod("email")
-      setIsAuthenticated(true)
+      if (email === MOCK_CREDENTIALS.email && password === MOCK_CREDENTIALS.password) {
+        setAuthMethod("email")
+        setIsAuthenticated(true)
+      } else {
+        setError("Invalid email or password")
+      }
+      setIsLoading(false)
     } else {
-      setError("Invalid email or password")
+      // Real NextAuth authentication for production
+      try {
+        const { signIn } = await import("next-auth/react")
+        const result = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        })
+
+        if (result?.error) {
+          setError("Invalid email or password")
+        } else if (result?.ok) {
+          window.location.href = "/"
+        }
+      } catch (err) {
+        console.error("[v0] Credentials sign-in error:", err)
+        setError("Failed to sign in")
+      }
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
-  const handleSignOut = () => {
-    setIsAuthenticated(false)
-    setAuthMethod(null)
-    setEmail("")
-    setPassword("")
-    setError("")
+  const handleSignOut = async () => {
+    if (IS_PREVIEW) {
+      // Mock sign-out for preview
+      setIsAuthenticated(false)
+      setAuthMethod(null)
+      setEmail("")
+      setPassword("")
+      setError("")
+    } else {
+      // Real NextAuth sign-out for production
+      try {
+        const { signOut } = await import("next-auth/react")
+        await signOut({ callbackUrl: "/auth/signin" })
+      } catch (err) {
+        console.error("[v0] Sign-out error:", err)
+      }
+    }
   }
 
-  if (isAuthenticated) {
+  if (IS_PREVIEW && isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="w-full max-w-md">
@@ -105,14 +150,16 @@ export default function SignInPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-4">
-        <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
-          <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
-          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-            <strong>MOCK LOGIN - For preview only.</strong> Production uses real NextAuth authentication.
-            <br />
-            <span className="text-sm">Test credentials: test@example.com / password123</span>
-          </AlertDescription>
-        </Alert>
+        {IS_PREVIEW && (
+          <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+            <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+            <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+              <strong>MOCK LOGIN - For preview only.</strong> Production uses real NextAuth authentication.
+              <br />
+              <span className="text-sm">Test credentials: test@example.com / password123</span>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Card>
           <CardHeader className="space-y-1">
