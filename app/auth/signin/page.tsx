@@ -57,7 +57,7 @@ export default function SignInPage() {
         await mockAuth.signIn(email, password)
         console.log("[v0] Mock auth sign in successful")
         toast.success("Signed in successfully!")
-        router.push("/")
+        router.push("/dashboard")
         router.refresh()
       } else {
         const { signIn } = await import("next-auth/react")
@@ -70,7 +70,7 @@ export default function SignInPage() {
         if (result?.error) {
           toast.error("Invalid email or password")
         } else {
-          router.push("/")
+          router.push("/dashboard")
           router.refresh()
         }
       }
@@ -99,7 +99,7 @@ export default function SignInPage() {
         await mockAuth.signUp(email, password, name)
         console.log("[v0] Mock auth sign up successful")
         toast.success("Account created successfully!")
-        router.push("/")
+        router.push("/dashboard")
         router.refresh()
       } else {
         const response = await fetch("/api/auth/signup", {
@@ -127,7 +127,7 @@ export default function SignInPage() {
         if (result?.error) {
           toast.error("Account created but failed to sign in. Please try signing in manually.")
         } else {
-          router.push("/")
+          router.push("/dashboard")
           router.refresh()
         }
       }
