@@ -4,7 +4,61 @@ import { createClient } from "@/lib/supabase/server"
 import type { Task } from "@/lib/db"
 import { getUserId } from "@/lib/get-user-id"
 
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
+
+const MOCK_TASKS: Task[] = [
+  {
+    id: 1,
+    title: "Review project requirements",
+    description: "Go through all the requirements and make notes",
+    column_name: "hot_list",
+    position: 0,
+    completed: false,
+    user_id: 1,
+    label: null,
+    parent_id: null,
+    week_start_date: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    completed_at: null,
+    linked_task_id: null,
+    origin_column: null,
+    is_moved_to_hitlist: false,
+    clerk_user_id: null,
+  },
+  {
+    id: 2,
+    title: "Design database schema",
+    description: null,
+    column_name: "the_door",
+    position: 0,
+    completed: false,
+    user_id: 1,
+    label: "Door",
+    parent_id: null,
+    week_start_date: "2025-10-20",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    completed_at: null,
+    linked_task_id: null,
+    origin_column: null,
+    is_moved_to_hitlist: false,
+    clerk_user_id: null,
+  },
+]
+
+let mockTasksState = [...MOCK_TASKS]
+let nextMockId = 3
+
 export async function getTasks(weekStartDate?: string) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: returning mock tasks")
+    if (weekStartDate) {
+      return mockTasksState.filter((t) => t.week_start_date === weekStartDate || t.week_start_date === null)
+    }
+    return mockTasksState
+  }
+
   try {
     const userId = await getUserId()
     const supabase = await createClient()
@@ -33,6 +87,35 @@ export async function createTask(data: {
   parentId?: number
   weekStartDate?: string
 }) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: creating mock task")
+    const maxPosition = mockTasksState
+      .filter((t) => t.column_name === data.columnName)
+      .reduce((max, t) => Math.max(max, t.position), -1)
+
+    const newTask: Task = {
+      id: nextMockId++,
+      title: data.title,
+      description: data.description || null,
+      column_name: data.columnName,
+      position: maxPosition + 1,
+      completed: false,
+      user_id: 1,
+      label: data.label || null,
+      parent_id: data.parentId || null,
+      week_start_date: data.weekStartDate || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      completed_at: null,
+      linked_task_id: null,
+      origin_column: null,
+      is_moved_to_hitlist: false,
+      clerk_user_id: null,
+    }
+    mockTasksState.push(newTask)
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -72,6 +155,11 @@ export async function copyDoorTaskToHitList(
   newPosition: number,
   weekStartDate: string,
 ) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping copyDoorTaskToHitList")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -136,6 +224,11 @@ export async function copyTaskFromHotList(
   newPosition: number,
   weekStartDate?: string,
 ) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping copyTaskFromHotList")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -211,6 +304,19 @@ export async function copyTaskFromHotList(
 }
 
 export async function updateTask(id: number, data: Partial<Task>) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: updating mock task")
+    const taskIndex = mockTasksState.findIndex((t) => t.id === id)
+    if (taskIndex !== -1) {
+      mockTasksState[taskIndex] = {
+        ...mockTasksState[taskIndex],
+        ...data,
+        updated_at: new Date().toISOString(),
+      }
+    }
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -258,6 +364,12 @@ export async function updateTask(id: number, data: Partial<Task>) {
 }
 
 export async function deleteTask(id: number) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: deleting mock task")
+    mockTasksState = mockTasksState.filter((t) => t.id !== id)
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -267,6 +379,11 @@ export async function deleteTask(id: number) {
 }
 
 export async function reorderTask(taskId: number, direction: "up" | "down") {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping reorderTask")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -318,6 +435,11 @@ export async function moveTaskToColumn(
   currentColumn: string,
   weekStartDate?: string,
 ) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping moveTaskToColumn")
+    return
+  }
+
   const columns = ["hot_list", "the_door", "hit_list", "done"]
 
   let currentIndex = columns.indexOf(currentColumn)
@@ -346,6 +468,21 @@ export async function moveTaskToColumn(
 
 export async function moveTask(taskId: number, newColumn: string, newPosition: number, weekStartDate?: string) {
   console.log("[v0] moveTask called:", { taskId, newColumn, newPosition, weekStartDate })
+
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: moving mock task")
+    const taskIndex = mockTasksState.findIndex((t) => t.id === taskId)
+    if (taskIndex !== -1) {
+      mockTasksState[taskIndex] = {
+        ...mockTasksState[taskIndex],
+        column_name: newColumn,
+        position: newPosition,
+        week_start_date: weekStartDate || null,
+        updated_at: new Date().toISOString(),
+      }
+    }
+    return
+  }
 
   const userId = await getUserId()
   const supabase = await createClient()
@@ -538,6 +675,11 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
 }
 
 export async function reorderTaskToPosition(taskId: number, overTaskId: number) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping reorderTaskToPosition")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -600,6 +742,11 @@ export async function moveTaskBetweenDoorAndHitList(
   newPosition: number,
   weekStartDate?: string,
 ) {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping moveTaskBetweenDoorAndHitList")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
@@ -662,6 +809,11 @@ export async function moveTaskBetweenDoorAndHitList(
 }
 
 export async function checkAndResetWeekly() {
+  if (IS_PREVIEW) {
+    console.log("[v0] Preview mode: skipping checkAndResetWeekly")
+    return
+  }
+
   const userId = await getUserId()
   const supabase = await createClient()
 
