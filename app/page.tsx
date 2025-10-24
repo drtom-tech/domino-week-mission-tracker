@@ -42,7 +42,7 @@ export default function Home() {
             <CardDescription>Get started with your dashboard</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <Link href="/auth/signin" className="block">
+            <Link href="/dashboard" className="block">
               <Button className="w-full" size="lg">
                 Sign In to Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
