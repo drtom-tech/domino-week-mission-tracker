@@ -41,8 +41,22 @@ export function createPreviewSql() {
     console.log("[v0] Preview DB query:", query.substring(0, 100))
     console.log("[v0] Preview DB values:", values)
 
+    const trimmedQuery = query.trim().toUpperCase()
+    if (
+      trimmedQuery === "BEGIN" ||
+      trimmedQuery === "COMMIT" ||
+      trimmedQuery === "ROLLBACK" ||
+      trimmedQuery.startsWith("BEGIN") ||
+      trimmedQuery.startsWith("COMMIT") ||
+      trimmedQuery.startsWith("ROLLBACK") ||
+      trimmedQuery === "$1" // Sometimes transactions are passed as just $1
+    ) {
+      console.log("[v0] Preview DB: ignoring transaction statement")
+      return Promise.resolve([])
+    }
+
     // Handle SELECT queries
-    if (query.trim().toUpperCase().startsWith("SELECT")) {
+    if (trimmedQuery.startsWith("SELECT")) {
       if (query.includes("FROM tasks")) {
         let filtered = [...tasks]
 
@@ -92,7 +106,7 @@ export function createPreviewSql() {
     }
 
     // Handle INSERT queries
-    if (query.trim().toUpperCase().startsWith("INSERT INTO tasks")) {
+    if (trimmedQuery.includes("INSERT INTO TASKS") || trimmedQuery.startsWith("INSERT INTO TASKS")) {
       const newTask: PreviewTask = {
         id: nextId++,
         user_id: values[0],
@@ -114,11 +128,11 @@ export function createPreviewSql() {
 
       tasks.push(newTask)
       console.log("[v0] Preview DB inserted task:", newTask.id, newTask.title)
-      return Promise.resolve([{ id: newTask.id }])
+      return Promise.resolve([newTask])
     }
 
     // Handle UPDATE queries
-    if (query.trim().toUpperCase().startsWith("UPDATE tasks")) {
+    if (trimmedQuery.startsWith("UPDATE TASKS")) {
       // Extract the task ID from the WHERE clause
       const whereMatch = query.match(/WHERE\s+id\s*=\s*\$(\d+)/)
       if (whereMatch) {
@@ -136,7 +150,7 @@ export function createPreviewSql() {
     }
 
     // Handle DELETE queries
-    if (query.trim().toUpperCase().startsWith("DELETE FROM tasks")) {
+    if (trimmedQuery.startsWith("DELETE FROM TASKS")) {
       const whereMatch = query.match(/WHERE\s+id\s*=\s*\$(\d+)/)
       if (whereMatch) {
         const paramIndex = Number.parseInt(whereMatch[1]) - 1
