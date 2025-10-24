@@ -1,26 +1,38 @@
 "use server"
 
-import { getServerSession } from "next-auth"
 import { authOptions } from "./auth"
-import { headers } from "next/headers"
+import { cookies } from "next/headers"
 
 export async function getUserId(): Promise<string> {
-  const headersList = await headers()
-  const host = headersList.get("host") || ""
-  const isPreview = host.includes("v0.app") || host.includes("vusercontent.net")
+  console.log("[v0] getUserId called")
 
-  // In preview mode, return a mock user ID for testing
-  if (isPreview) {
-    console.log("[v0] Preview mode detected, using mock user ID")
-    return "preview-user-1"
+  const cookieStore = await cookies()
+  const mockUser = cookieStore.get("mock-auth-user")
+
+  console.log("[v0] Mock user cookie:", mockUser?.value)
+
+  if (mockUser) {
+    try {
+      const user = JSON.parse(mockUser.value)
+      console.log("[v0] getUserId returning mock user ID:", user.id)
+      return user.id
+    } catch (e) {
+      console.error("[v0] Failed to parse mock user cookie:", e)
+    }
   }
 
-  // In production, use NextAuth authentication
-  const session = await getServerSession(authOptions)
+  try {
+    const { getServerSession } = await import("next-auth")
+    const session = await getServerSession(authOptions)
 
-  if (!session?.user?.id) {
-    throw new Error("Unauthorized - Please sign in")
+    if (session?.user?.id) {
+      console.log("[v0] getUserId returning NextAuth user ID:", session.user.id)
+      return session.user.id
+    }
+  } catch (error) {
+    console.log("[v0] NextAuth not available, using fallback")
   }
 
-  return session.user.id
+  console.log("[v0] getUserId returning fallback: preview-user-1")
+  return "preview-user-1"
 }

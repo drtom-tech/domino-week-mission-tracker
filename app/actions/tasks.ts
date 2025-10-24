@@ -4,8 +4,11 @@ import { sql, type Task } from "@/lib/db"
 import { getUserId } from "@/lib/get-user-id"
 
 export async function getTasks(weekStartDate?: string) {
+  console.log("[v0] getTasks called with weekStartDate:", weekStartDate)
+
   try {
     const userId = await getUserId()
+    console.log("[v0] getTasks using userId:", userId)
 
     if (weekStartDate) {
       const tasks = await sql`
@@ -14,6 +17,7 @@ export async function getTasks(weekStartDate?: string) {
           AND ((week_start_date::date = ${weekStartDate}::date) OR week_start_date IS NULL)
         ORDER BY position ASC
       `
+      console.log("[v0] getTasks found", tasks.length, "tasks for week", weekStartDate)
       return tasks as Task[]
     }
 
@@ -22,6 +26,7 @@ export async function getTasks(weekStartDate?: string) {
       WHERE user_id = ${userId}
       ORDER BY position ASC
     `
+    console.log("[v0] getTasks found", tasks.length, "total tasks")
     return tasks as Task[]
   } catch (error) {
     console.error("[v0] getTasks error:", error)
@@ -39,29 +44,43 @@ export async function createTask(data: {
   parentId?: number
   weekStartDate?: string
 }) {
+  console.log("[v0] createTask called with data:", data)
+
   const userId = await getUserId()
+  console.log("[v0] createTask using userId:", userId)
 
-  const maxPosition = await sql`
-    SELECT COALESCE(MAX(position), -1) as max_pos 
-    FROM tasks 
-    WHERE user_id = ${userId} AND column_name = ${data.columnName}
-    ${data.weekStartDate ? sql`AND week_start_date = ${data.weekStartDate}` : sql``}
-  `
-  const newPosition = (maxPosition[0]?.max_pos ?? -1) + 1
+  try {
+    const maxPosition = await sql`
+      SELECT COALESCE(MAX(position), -1) as max_pos 
+      FROM tasks 
+      WHERE user_id = ${userId} AND column_name = ${data.columnName}
+      ${data.weekStartDate ? sql`AND week_start_date = ${data.weekStartDate}` : sql``}
+    `
+    const newPosition = (maxPosition[0]?.max_pos ?? -1) + 1
 
-  await sql`
-    INSERT INTO tasks (user_id, title, description, label, column_name, position, parent_id, week_start_date)
-    VALUES (
-      ${userId},
-      ${data.title}, 
-      ${data.description || null}, 
-      ${data.label || null}, 
-      ${data.columnName}, 
-      ${newPosition}, 
-      ${data.parentId || null},
-      ${data.weekStartDate || null}
-    )
-  `
+    console.log("[v0] createTask newPosition:", newPosition)
+
+    const result = await sql`
+      INSERT INTO tasks (user_id, title, description, label, column_name, position, parent_id, week_start_date)
+      VALUES (
+        ${userId},
+        ${data.title}, 
+        ${data.description || null}, 
+        ${data.label || null}, 
+        ${data.columnName}, 
+        ${newPosition}, 
+        ${data.parentId || null},
+        ${data.weekStartDate || null}
+      )
+      RETURNING id
+    `
+
+    console.log("[v0] createTask success, new task ID:", result[0]?.id)
+    return result[0]
+  } catch (error) {
+    console.error("[v0] createTask error:", error)
+    throw error
+  }
 }
 
 export async function copyDoorTaskToHitList(

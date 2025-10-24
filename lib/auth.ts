@@ -1,97 +1,113 @@
 import type { NextAuthOptions } from "next-auth"
-import GoogleProviderModule from "next-auth/providers/google"
-import CredentialsProviderModule from "next-auth/providers/credentials"
-import { neon } from "@neondatabase/serverless"
-import bcrypt from "bcryptjs"
+import { isPreviewEnvironment } from "./auth-helpers"
 
-const resolveProvider = (module: any) => {
-  // Try different possible module structures
-  if (typeof module === "function") return module
-  if (typeof module?.default === "function") return module.default
-  if (typeof module?.default?.default === "function") return module.default.default
-  // Fallback to the module itself
-  return module
+let GoogleProvider: any
+let CredentialsProvider: any
+let bcrypt: any
+
+if (!isPreviewEnvironment()) {
+  GoogleProvider = require("next-auth/providers/google").default
+  CredentialsProvider = require("next-auth/providers/credentials").default
+  bcrypt = require("bcryptjs")
 }
 
-const GoogleProvider = resolveProvider(GoogleProviderModule)
-const CredentialsProvider = resolveProvider(CredentialsProviderModule)
+export const authOptions: NextAuthOptions = isPreviewEnvironment()
+  ? {
+      secret: "preview-mode-secret",
+      providers: [],
+      session: { strategy: "jwt" },
+      pages: { signIn: "/auth/signin" },
+    }
+  : {
+      secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
+      providers: [
+        GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID || "",
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+        }),
+        CredentialsProvider({
+          name: "credentials",
+          credentials: {
+            email: { label: "Email", type: "email" },
+            password: { label: "Password", type: "password" },
+          },
+          async authorize(credentials: any) {
+            if (!credentials?.email || !credentials?.password) {
+              return null
+            }
 
-const sql = neon(process.env.DATABASE_URL!)
+            try {
+              const { db } = await import("./db/index")
+              const { users } = await import("./db/schema")
+              const { eq } = await import("drizzle-orm")
 
-export const authOptions: NextAuthOptions = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    CredentialsProvider({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+              const [user] = await db.select().from(users).where(eq(users.email, credentials.email)).limit(1)
+
+              if (!user || !user.password) {
+                return null
+              }
+
+              const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+
+              if (!isPasswordValid) {
+                return null
+              }
+
+              return {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+              }
+            } catch (error) {
+              console.error("[v0] Auth error:", error)
+              return null
+            }
+          },
+        }),
+      ],
+      session: {
+        strategy: "jwt",
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          return null
-        }
-
-        const users = await sql`
-          SELECT * FROM users WHERE email = ${credentials.email}
-        `
-
-        if (users.length === 0) {
-          return null
-        }
-
-        const user = users[0]
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash)
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
-        }
+      pages: {
+        signIn: "/auth/signin",
       },
-    }),
-  ],
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/auth/signin",
-  },
-  callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.id = user.id
-      }
-      if (account?.provider === "google") {
-        // Handle Google OAuth user creation/lookup
-        const users = await sql`
-          SELECT * FROM users WHERE email = ${user.email}
-        `
-        if (users.length === 0) {
-          const newUsers = await sql`
-            INSERT INTO users (email, name, password_hash)
-            VALUES (${user.email}, ${user.name}, '')
-            RETURNING id
-          `
-          token.id = newUsers[0].id.toString()
-        } else {
-          token.id = users[0].id.toString()
-        }
-      }
-      return token
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string
-      }
-      return session
-    },
-  },
-}
+      callbacks: {
+        async jwt({ token, user, account }) {
+          if (account?.provider === "google" && user) {
+            try {
+              const { db } = await import("./db/index")
+              const { users } = await import("./db/schema")
+              const { eq } = await import("drizzle-orm")
+
+              const [existingUser] = await db.select().from(users).where(eq(users.email, user.email!)).limit(1)
+
+              if (!existingUser) {
+                const [newUser] = await db
+                  .insert(users)
+                  .values({
+                    email: user.email!,
+                    name: user.name,
+                    image: user.image,
+                  })
+                  .returning()
+                token.id = newUser.id
+              } else {
+                token.id = existingUser.id
+              }
+            } catch (error) {
+              console.error("[v0] Error creating user:", error)
+            }
+          } else if (user) {
+            token.id = user.id
+          }
+          return token
+        },
+        async session({ session, token }) {
+          if (session.user) {
+            session.user.id = token.id as string
+          }
+          return session
+        },
+      },
+    }
