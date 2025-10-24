@@ -1,17 +1,23 @@
 "use client"
 
 import type React from "react"
-
-import { SessionProvider } from "next-auth/react"
 import { MockAuthProvider } from "@/lib/mock-auth"
 import { Toaster } from "@/components/ui/sonner"
 import { useEffect, useState } from "react"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [isPreview, setIsPreview] = useState<boolean | null>(null)
+  const [SessionProvider, setSessionProvider] = useState<any>(null)
 
   useEffect(() => {
-    setIsPreview(window.location.hostname.includes("v0.app"))
+    const preview = window.location.hostname.includes("v0.app")
+    setIsPreview(preview)
+
+    if (!preview) {
+      import("next-auth/react").then((mod) => {
+        setSessionProvider(() => mod.SessionProvider)
+      })
+    }
   }, [])
 
   if (isPreview === null) {
@@ -25,6 +31,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <Toaster />
       </MockAuthProvider>
     )
+  }
+
+  if (!SessionProvider) {
+    return null
   }
 
   return (
