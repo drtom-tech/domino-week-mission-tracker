@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@auth/core": "latest",
-    "@auth/drizzle-adapter": "latest",
     "@aws-sdk/client-rds-data": "latest",
     "@cloudflare/workers-types": "latest",
     "@dnd-kit/core": "latest",

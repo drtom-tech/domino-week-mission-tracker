@@ -1,7 +1,6 @@
 import type { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
-import { DrizzleAdapter } from "@auth/drizzle-adapter"
 import { db } from "./db/index"
 import { users } from "./db/schema"
 import { eq } from "drizzle-orm"
@@ -9,11 +8,10 @@ import bcrypt from "bcryptjs"
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
-  adapter: DrizzleAdapter(db) as any,
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     }),
     CredentialsProvider({
       name: "credentials",
@@ -23,26 +21,31 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials")
+          return null
         }
 
-        const [user] = await db.select().from(users).where(eq(users.email, credentials.email)).limit(1)
+        try {
+          const [user] = await db.select().from(users).where(eq(users.email, credentials.email)).limit(1)
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials")
-        }
+          if (!user || !user.password) {
+            return null
+          }
 
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password)
 
-        if (!isPasswordValid) {
-          throw new Error("Invalid credentials")
-        }
+          if (!isPasswordValid) {
+            return null
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            image: user.image,
+          }
+        } catch (error) {
+          console.error("[v0] Auth error:", error)
+          return null
         }
       },
     }),
@@ -54,8 +57,28 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      if (account?.provider === "google" && user) {
+        try {
+          const [existingUser] = await db.select().from(users).where(eq(users.email, user.email!)).limit(1)
+
+          if (!existingUser) {
+            const [newUser] = await db
+              .insert(users)
+              .values({
+                email: user.email!,
+                name: user.name,
+                image: user.image,
+              })
+              .returning()
+            token.id = newUser.id
+          } else {
+            token.id = existingUser.id
+          }
+        } catch (error) {
+          console.error("[v0] Error creating user:", error)
+        }
+      } else if (user) {
         token.id = user.id
       }
       return token
