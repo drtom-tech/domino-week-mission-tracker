@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@auth/core": "latest",
+    "@auth/drizzle-adapter": "latest",
     "@aws-sdk/client-rds-data": "latest",
     "@cloudflare/workers-types": "latest",
     "@dnd-kit/core": "latest",
@@ -85,7 +86,7 @@
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
     "autoprefixer": "10.4.19",
-    "drizzle-kit": "0.21.2",
+    "drizzle-kit": "latest",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.3",
     "postcss": "^8.5",
