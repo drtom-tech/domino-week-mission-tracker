@@ -11,6 +11,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
+
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -21,7 +23,6 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -31,6 +32,14 @@ export default function SignUpPage() {
       return
     }
 
+    if (IS_PREVIEW) {
+      // Simulate a delay for realistic UX
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      router.push("/dashboard")
+      return
+    }
+
+    const supabase = createClient()
     try {
       const { error } = await supabase.auth.signUp({
         email,
@@ -51,6 +60,11 @@ export default function SignUpPage() {
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
+        {IS_PREVIEW && (
+          <div className="mb-4 rounded-lg bg-yellow-50 p-3 text-sm text-yellow-800 border border-yellow-200">
+            <strong>PREVIEW MODE:</strong> Sign up with any email/password to access the dashboard
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Sign up</CardTitle>
