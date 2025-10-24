@@ -13,6 +13,41 @@ import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useSession, signIn, signOut } from "@/components/session-provider"
 
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
+
+const MOCK_TASKS = [
+  {
+    id: "1",
+    title: "Review project requirements",
+    description: "Go through the project specs and create a task list",
+    status: "todo" as const,
+    week_start: formatWeekStart(new Date()),
+    day_of_week: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "2",
+    title: "Design database schema",
+    description: "Create the initial database design",
+    status: "in_progress" as const,
+    week_start: formatWeekStart(new Date()),
+    day_of_week: 2,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: "3",
+    title: "Setup development environment",
+    description: "Install dependencies and configure tools",
+    status: "done" as const,
+    week_start: formatWeekStart(new Date()),
+    day_of_week: 1,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+]
+
 export default function Home() {
   const { data: session, status } = useSession()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
@@ -40,12 +75,17 @@ export default function Home() {
     error,
     isLoading,
     mutate,
-  } = useSWR(currentWeekStart ? ["tasks", currentWeekStart] : null, () => getTasks(currentWeekStart), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-  })
+  } = useSWR(
+    IS_PREVIEW ? null : currentWeekStart ? ["tasks", currentWeekStart] : null,
+    IS_PREVIEW ? null : () => getTasks(currentWeekStart),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      fallbackData: IS_PREVIEW ? MOCK_TASKS : undefined,
+    },
+  )
 
-  if (error) {
+  if (error && !IS_PREVIEW) {
     return (
       <div className="min-h-screen bg-background p-8">
         <Alert variant="destructive" className="max-w-2xl mx-auto">
@@ -118,6 +158,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      {IS_PREVIEW && (
+        <div className="bg-yellow-500 text-yellow-950 px-4 py-2 text-center text-sm font-medium">
+          PREVIEW MODE - Using mock data. Production uses real database.
+        </div>
+      )}
       <header className="border-b">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-2">
@@ -172,7 +217,9 @@ export default function Home() {
           onWeekOffsetChange={handleWeekOffsetChange}
           onTasksChange={() => {
             console.log("[v0] onTasksChange called, current weekOffset:", weekOffset)
-            mutate()
+            if (!IS_PREVIEW) {
+              mutate()
+            }
           }}
         />
       </main>
