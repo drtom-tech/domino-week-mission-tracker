@@ -11,9 +11,10 @@ import { useState } from "react"
 
 interface MissionBoardProps {
   tasks: Task[]
+  onTasksChange?: () => void // Added callback to revalidate tasks after changes
 }
 
-export function MissionBoard({ tasks }: MissionBoardProps) {
+export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
   const [mobileColumn, setMobileColumn] = useState("mission_list")
 
   const getTasksByColumn = (columnId: string) => {
@@ -32,6 +33,9 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
     }
 
     await moveTask(taskId, newColumn, 0)
+    if (onTasksChange) {
+      onTasksChange()
+    }
   }
 
   const mobileColumns = [
@@ -55,7 +59,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton={selectedCol.id === "mission_list"}
-          onAddTask={() => {}}
+          onAddTask={onTasksChange} // Pass callback to trigger refetch
         />
       </div>
     )
@@ -74,7 +78,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton
-          onAddTask={() => {}}
+          onAddTask={onTasksChange} // Pass callback to trigger refetch
           className="md:col-span-1"
         />
 
@@ -113,6 +117,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
       <div className="fixed bottom-6 right-6">
         <AddTaskDialog
           columnName="mission_list"
+          onSuccess={onTasksChange} // Trigger refetch after task creation
           trigger={
             <Button size="lg" className="rounded-full h-14 w-14 shadow-lg">
               <Plus className="h-6 w-6" />

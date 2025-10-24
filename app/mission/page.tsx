@@ -25,6 +25,7 @@ export default function MissionPage() {
     data: tasks,
     error,
     isLoading,
+    mutate, // Added mutate to revalidate cache after task changes
   } = useSWR("mission-tasks", () => getTasks(), {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
@@ -135,7 +136,7 @@ export default function MissionPage() {
         </div>
       </header>
       <main>
-        <MissionBoard tasks={tasks || []} />
+        <MissionBoard tasks={tasks || []} onTasksChange={() => mutate()} />
       </main>
     </div>
   )
