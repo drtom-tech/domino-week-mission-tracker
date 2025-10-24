@@ -1,6 +1,30 @@
-import NextAuth from "next-auth"
-import { authOptions } from "@/lib/auth"
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE === "true"
 
-const handler = NextAuth(authOptions)
+let GET: any
+let POST: any
 
-export { handler as GET, handler as POST }
+if (IS_PREVIEW) {
+  GET = async () => {
+    return new Response(JSON.stringify({ error: "Preview mode - auth disabled" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+
+  POST = async () => {
+    return new Response(JSON.stringify({ error: "Preview mode - auth disabled" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+} else {
+  const NextAuth = require("next-auth")
+  const { authOptions } = require("@/lib/auth")
+
+  const handler = NextAuth.default(authOptions)
+
+  GET = handler
+  POST = handler
+}
+
+export { GET, POST }
