@@ -2,10 +2,15 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
+  const isPreview = request.nextUrl.hostname.includes("v0.app")
+
+  if (isPreview) {
+    return NextResponse.next()
+  }
+
   const token =
     request.cookies.get("next-auth.session-token") || request.cookies.get("__Secure-next-auth.session-token")
 
-  // Check if user is authenticated
   const isAuthenticated = !!token
 
   // Redirect to signin if not authenticated and trying to access protected routes

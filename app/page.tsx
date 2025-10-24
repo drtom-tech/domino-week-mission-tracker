@@ -2,21 +2,21 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { useSession } from "next-auth/react"
+import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
 export default function Home() {
-  const { data: session, status } = useSession()
+  const { user, isLoading } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
-    if (status === "authenticated") {
+    if (user) {
       router.push("/dashboard")
     }
-  }, [status, router])
+  }, [user, router])
 
-  if (status === "loading") {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">

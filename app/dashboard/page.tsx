@@ -9,9 +9,10 @@ import { AlertCircle, Menu, LogOut } from "lucide-react"
 import useSWR from "swr"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { useSession, signOut } from "next-auth/react"
+import { useAuth } from "@/lib/use-auth"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
@@ -23,9 +24,16 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 export default function Home() {
-  const { data: session } = useSession()
+  const { user, isLoading: authLoading, signOut } = useAuth()
+  const router = useRouter()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/auth/signin")
+    }
+  }, [user, authLoading, router])
 
   const handleWeekOffsetChange = (newOffset: number) => {
     console.log("[v0] Week offset changing from", weekOffset, "to", newOffset)
@@ -53,6 +61,16 @@ export default function Home() {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
   })
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   if (error) {
     return (
@@ -86,25 +104,25 @@ export default function Home() {
                 <Link href="/mission" className="hidden md:block">
                   <Button variant="outline">Mission Board</Button>
                 </Link>
-                {session?.user && (
+                {user && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
-                          <AvatarFallback>{session.user.name?.[0] || session.user.email?.[0] || "U"}</AvatarFallback>
+                          <AvatarImage src={(user as any).image || ""} alt={user.name || ""} />
+                          <AvatarFallback>{user.name?.[0] || user.email?.[0] || "U"}</AvatarFallback>
                         </Avatar>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount>
                       <DropdownMenuLabel className="font-normal">
                         <div className="flex flex-col space-y-1">
-                          <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                          <p className="text-xs leading-none text-muted-foreground">{session.user.email}</p>
+                          <p className="text-sm font-medium leading-none">{user.name}</p>
+                          <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
+                      <DropdownMenuItem onClick={() => signOut()}>
                         <LogOut className="mr-2 h-4 w-4" />
                         <span>Sign out</span>
                       </DropdownMenuItem>
@@ -157,25 +175,25 @@ export default function Home() {
               <Link href="/mission" className="hidden md:block">
                 <Button variant="outline">Mission Board</Button>
               </Link>
-              {session?.user && (
+              {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src={session.user.image || ""} alt={session.user.name || ""} />
-                        <AvatarFallback>{session.user.name?.[0] || session.user.email?.[0] || "U"}</AvatarFallback>
+                        <AvatarImage src={(user as any).image || ""} alt={user.name || ""} />
+                        <AvatarFallback>{user.name?.[0] || user.email?.[0] || "U"}</AvatarFallback>
                       </Avatar>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end" forceMount>
                     <DropdownMenuLabel className="font-normal">
                       <div className="flex flex-col space-y-1">
-                        <p className="text-sm font-medium leading-none">{session.user.name}</p>
-                        <p className="text-xs leading-none text-muted-foreground">{session.user.email}</p>
+                        <p className="text-sm font-medium leading-none">{user.name}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
+                    <DropdownMenuItem onClick={() => signOut()}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign out</span>
                     </DropdownMenuItem>
