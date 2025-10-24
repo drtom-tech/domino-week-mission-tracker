@@ -18,14 +18,33 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useState, useMemo, useEffect } from "react"
+import { formatQuarterStart, addQuarters, parseDateLocal } from "@/lib/utils"
 
 export default function MissionPage() {
   const { user, signOut: handleSignOut } = useAuth()
+  const [baseQuarterStart, setBaseQuarterStart] = useState<string>(() => formatQuarterStart(new Date()))
+  const [quarterOffset, setQuarterOffset] = useState(0)
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    setPortalContainer(document.getElementById("quarter-nav-container"))
+  }, [])
+
+  const currentQuarterStart = useMemo(() => {
+    if (!baseQuarterStart) return ""
+    if (quarterOffset === 0) return baseQuarterStart
+
+    const base = parseDateLocal(baseQuarterStart)
+    const offsetDate = addQuarters(base, quarterOffset)
+    return formatQuarterStart(offsetDate)
+  }, [baseQuarterStart, quarterOffset])
+
   const {
     data: tasks,
     error,
     isLoading,
-    mutate, // Added mutate to revalidate cache after task changes
+    mutate,
   } = useSWR("mission-tasks", () => getTasks(), {
     revalidateOnFocus: false,
     revalidateOnReconnect: true,
@@ -37,6 +56,9 @@ export default function MissionPage() {
         <header className="border-b">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold">Mission Board</h1>
+            <div className="flex-1 flex justify-center">
+              <div id="quarter-nav-container"></div>
+            </div>
             <div className="flex items-center gap-2">
               <Link href="/dashboard">
                 <Button variant="outline">Kanban Board</Button>
@@ -103,6 +125,9 @@ export default function MissionPage() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Mission Board</h1>
+          <div className="flex-1 flex justify-center">
+            <div id="quarter-nav-container"></div>
+          </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
@@ -136,7 +161,14 @@ export default function MissionPage() {
         </div>
       </header>
       <main>
-        <MissionBoard tasks={tasks || []} onTasksChange={() => mutate()} />
+        <MissionBoard
+          tasks={tasks || []}
+          currentQuarterStart={currentQuarterStart}
+          quarterOffset={quarterOffset}
+          onQuarterOffsetChange={setQuarterOffset}
+          onTasksChange={() => mutate()}
+          portalContainer={portalContainer}
+        />
       </main>
     </div>
   )

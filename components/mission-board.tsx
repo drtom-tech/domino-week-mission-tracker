@@ -4,21 +4,50 @@ import type { Task } from "@/lib/db"
 import { KanbanColumn } from "./kanban-column"
 import { AddTaskDialog } from "./add-task-dialog"
 import { MobileColumnSelector } from "./mobile-column-selector"
+import { QuarterNavigator } from "./quarter-navigator"
 import { moveTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { useState } from "react"
+import { createPortal } from "react-dom"
+import { formatQuarterLabel, isDateInQuarter } from "@/lib/utils"
 
 interface MissionBoardProps {
   tasks: Task[]
-  onTasksChange?: () => void // Added callback to revalidate tasks after changes
+  currentQuarterStart: string
+  quarterOffset: number
+  onQuarterOffsetChange: (offset: number) => void
+  onTasksChange?: () => void
+  portalContainer: HTMLElement | null
 }
 
-export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
+export function MissionBoard({
+  tasks,
+  currentQuarterStart,
+  quarterOffset,
+  onQuarterOffsetChange,
+  onTasksChange,
+  portalContainer,
+}: MissionBoardProps) {
   const [mobileColumn, setMobileColumn] = useState("mission_list")
 
   const getTasksByColumn = (columnId: string) => {
-    return tasks.filter((t) => t.column_name === columnId && !t.parent_id)
+    const baseTasks = tasks.filter((t) => t.column_name === columnId && !t.parent_id)
+
+    // Only filter "working_on" by quarter
+    if (columnId === "working_on" && currentQuarterStart) {
+      return baseTasks.filter((t) => {
+        // If task has a week_start_date, check if it's in the current quarter
+        if (t.week_start_date) {
+          return isDateInQuarter(t.week_start_date, currentQuarterStart)
+        }
+        // If no week_start_date, include it (for backwards compatibility)
+        return true
+      })
+    }
+
+    // Mission List, Yearly Targets, and Completed are not filtered by quarter
+    return baseTasks
   }
 
   const handleDrop = async (taskId: number, newColumn: string) => {
@@ -45,6 +74,12 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
     { id: "completed", label: "Completed" },
   ]
 
+  const quarterLabel = currentQuarterStart ? formatQuarterLabel(new Date(currentQuarterStart)) : ""
+
+  const handleCurrentQuarter = () => {
+    onQuarterOffsetChange(0)
+  }
+
   const renderMobileView = () => {
     const selectedCol = mobileColumns.find((col) => col.id === mobileColumn)
     if (!selectedCol) return null
@@ -59,7 +94,7 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton={selectedCol.id === "mission_list"}
-          onAddTask={onTasksChange} // Pass callback to trigger refetch
+          onAddTask={onTasksChange}
         />
       </div>
     )
@@ -67,10 +102,21 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
 
   return (
     <>
+      {portalContainer &&
+        createPortal(
+          <QuarterNavigator
+            quarterLabel={quarterLabel}
+            onPreviousQuarter={() => onQuarterOffsetChange(quarterOffset - 1)}
+            onNextQuarter={() => onQuarterOffsetChange(quarterOffset + 1)}
+            onCurrentQuarter={handleCurrentQuarter}
+          />,
+          portalContainer,
+        )}
+
       {renderMobileView()}
 
       <div className="hidden md:grid md:grid-cols-4 gap-6 p-6">
-        {/* Mission List */}
+        {/* Mission List - not filtered by quarter */}
         <KanbanColumn
           title="Mission List"
           columnId="mission_list"
@@ -78,11 +124,11 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton
-          onAddTask={onTasksChange} // Pass callback to trigger refetch
+          onAddTask={onTasksChange}
           className="md:col-span-1"
         />
 
-        {/* Working On */}
+        {/* Working On - filtered by selected quarter */}
         <KanbanColumn
           title="Working On"
           columnId="working_on"
@@ -92,7 +138,7 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
           className="md:col-span-1"
         />
 
-        {/* Yearly Targets */}
+        {/* Yearly Targets - not filtered by quarter */}
         <KanbanColumn
           title="Yearly Targets"
           columnId="yearly_targets"
@@ -102,7 +148,7 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
           className="md:col-span-1"
         />
 
-        {/* Completed */}
+        {/* Completed - not filtered by quarter */}
         <KanbanColumn
           title="Completed"
           columnId="completed"
@@ -117,7 +163,7 @@ export function MissionBoard({ tasks, onTasksChange }: MissionBoardProps) {
       <div className="fixed bottom-6 right-6">
         <AddTaskDialog
           columnName="mission_list"
-          onSuccess={onTasksChange} // Trigger refetch after task creation
+          onSuccess={onTasksChange}
           trigger={
             <Button size="lg" className="rounded-full h-14 w-14 shadow-lg">
               <Plus className="h-6 w-6" />
