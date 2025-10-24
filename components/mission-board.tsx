@@ -8,7 +8,7 @@ import { QuarterNavigator } from "./quarter-navigator"
 import { moveTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { createPortal } from "react-dom"
 import { formatQuarterLabel, isDateInQuarter } from "@/lib/utils"
 
@@ -30,6 +30,25 @@ export function MissionBoard({
   portalContainer,
 }: MissionBoardProps) {
   const [mobileColumn, setMobileColumn] = useState("mission_list")
+
+  const subtaskMap = useMemo(() => {
+    const map = new Map<number, Task[]>()
+    const parentTasks = new Set<number>()
+
+    tasks.forEach((task) => {
+      if (task.parent_id) {
+        parentTasks.add(task.parent_id)
+      }
+    })
+
+    parentTasks.forEach((parentId) => {
+      map.set(
+        parentId,
+        tasks.filter((task) => task.parent_id === parentId),
+      )
+    })
+    return map
+  }, [tasks])
 
   const getTasksByColumn = (columnId: string) => {
     const baseTasks = tasks.filter((t) => t.column_name === columnId && !t.parent_id)
@@ -91,6 +110,7 @@ export function MissionBoard({
           title={selectedCol.label}
           columnId={selectedCol.id}
           tasks={getTasksByColumn(selectedCol.id)}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton={selectedCol.id === "mission_list"}
@@ -121,6 +141,7 @@ export function MissionBoard({
           title="Mission List"
           columnId="mission_list"
           tasks={getTasksByColumn("mission_list")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton
@@ -133,6 +154,7 @@ export function MissionBoard({
           title="Working On"
           columnId="working_on"
           tasks={getTasksByColumn("working_on")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           className="md:col-span-1"
@@ -143,6 +165,7 @@ export function MissionBoard({
           title="Yearly Targets"
           columnId="yearly_targets"
           tasks={getTasksByColumn("yearly_targets")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           className="md:col-span-1"
@@ -153,6 +176,7 @@ export function MissionBoard({
           title="Completed"
           columnId="completed"
           tasks={getTasksByColumn("completed")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           className="md:col-span-1"
