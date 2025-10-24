@@ -1,7 +1,14 @@
 import { updateSession } from "@/lib/supabase/middleware"
-import type { NextRequest } from "next/server"
+import { NextResponse, type NextRequest } from "next/server"
+
+const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
 
 export async function middleware(request: NextRequest) {
+  // In preview mode, allow all requests through without auth checks
+  if (IS_PREVIEW) {
+    return NextResponse.next()
+  }
+
   return await updateSession(request)
 }
 
