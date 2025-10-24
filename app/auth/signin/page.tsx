@@ -29,6 +29,7 @@ export default function SignInPage() {
     // Simulate API call delay
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
+    localStorage.setItem("preview-auth", "true")
     router.push("/dashboard")
   }
 
@@ -41,6 +42,7 @@ export default function SignInPage() {
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
     if (email === MOCK_CREDENTIALS.email && password === MOCK_CREDENTIALS.password) {
+      localStorage.setItem("preview-auth", "true")
       router.push("/dashboard")
     } else {
       setError("Invalid email or password")
