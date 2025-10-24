@@ -8,10 +8,38 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { useSession, signIn, signOut } from "@/components/session-provider"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import type { User } from "@supabase/supabase-js"
 
 export default function MissionPage() {
-  const { data: session, status } = useSession()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/")
+  }
 
   const {
     data: tasks,
@@ -22,7 +50,7 @@ export default function MissionPage() {
     revalidateOnReconnect: true,
   })
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -32,12 +60,14 @@ export default function MissionPage() {
               <Link href="/dashboard">
                 <Button variant="outline">Kanban Board</Button>
               </Link>
-              {status === "loading" ? null : !session ? (
-                <Button variant="outline" size="sm" onClick={() => signIn()}>
-                  Sign in
-                </Button>
+              {loading ? null : !user ? (
+                <Link href="/auth/login">
+                  <Button variant="outline" size="sm">
+                    Sign in
+                  </Button>
+                </Link>
               ) : (
-                <Button variant="ghost" onClick={() => signOut()}>
+                <Button variant="ghost" onClick={handleSignOut}>
                   Sign Out
                 </Button>
               )}
@@ -82,12 +112,14 @@ export default function MissionPage() {
             <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            {status === "loading" ? null : !session ? (
-              <Button variant="outline" size="sm" onClick={() => signIn()}>
-                Sign in
-              </Button>
+            {loading ? null : !user ? (
+              <Link href="/auth/login">
+                <Button variant="outline" size="sm">
+                  Sign in
+                </Button>
+              </Link>
             ) : (
-              <Button variant="ghost" onClick={() => signOut()}>
+              <Button variant="ghost" onClick={handleSignOut}>
                 Sign Out
               </Button>
             )}

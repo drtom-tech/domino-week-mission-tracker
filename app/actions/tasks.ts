@@ -1,32 +1,26 @@
 "use server"
 
-import { sql, type Task } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
+import type { Task } from "@/lib/db"
 import { getUserId } from "@/lib/get-user-id"
 
 export async function getTasks(weekStartDate?: string) {
   try {
     const userId = await getUserId()
+    const supabase = await createClient()
+
+    let query = supabase.from("tasks").select("*").eq("user_id", userId).order("position", { ascending: true })
 
     if (weekStartDate) {
-      const tasks = await sql`
-        SELECT * FROM tasks 
-        WHERE user_id = ${userId}
-          AND ((week_start_date::date = ${weekStartDate}::date) OR week_start_date IS NULL)
-        ORDER BY position ASC
-      `
-      return tasks as Task[]
+      query = query.or(`week_start_date.eq.${weekStartDate},week_start_date.is.null`)
     }
 
-    const tasks = await sql`
-      SELECT * FROM tasks 
-      WHERE user_id = ${userId}
-      ORDER BY position ASC
-    `
-    return tasks as Task[]
+    const { data, error } = await query
+
+    if (error) throw error
+    return (data as Task[]) || []
   } catch (error) {
     console.error("[v0] getTasks error:", error)
-    // Return empty array instead of throwing to prevent error screen
-    // New users won't have any tasks yet
     return []
   }
 }
@@ -40,28 +34,36 @@ export async function createTask(data: {
   weekStartDate?: string
 }) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const maxPosition = await sql`
-    SELECT COALESCE(MAX(position), -1) as max_pos 
-    FROM tasks 
-    WHERE user_id = ${userId} AND column_name = ${data.columnName}
-    ${data.weekStartDate ? sql`AND week_start_date = ${data.weekStartDate}` : sql``}
-  `
-  const newPosition = (maxPosition[0]?.max_pos ?? -1) + 1
+  // Get max position
+  let query = supabase
+    .from("tasks")
+    .select("position")
+    .eq("user_id", userId)
+    .eq("column_name", data.columnName)
+    .order("position", { ascending: false })
+    .limit(1)
 
-  await sql`
-    INSERT INTO tasks (user_id, title, description, label, column_name, position, parent_id, week_start_date)
-    VALUES (
-      ${userId},
-      ${data.title}, 
-      ${data.description || null}, 
-      ${data.label || null}, 
-      ${data.columnName}, 
-      ${newPosition}, 
-      ${data.parentId || null},
-      ${data.weekStartDate || null}
-    )
-  `
+  if (data.weekStartDate) {
+    query = query.eq("week_start_date", data.weekStartDate)
+  }
+
+  const { data: maxData } = await query
+  const newPosition = (maxData?.[0]?.position ?? -1) + 1
+
+  const { error } = await supabase.from("tasks").insert({
+    user_id: userId,
+    title: data.title,
+    description: data.description || null,
+    label: data.label || null,
+    column_name: data.columnName,
+    position: newPosition,
+    parent_id: data.parentId || null,
+    week_start_date: data.weekStartDate || null,
+  })
+
+  if (error) throw error
 }
 
 export async function copyDoorTaskToHitList(
@@ -71,70 +73,61 @@ export async function copyDoorTaskToHitList(
   weekStartDate: string,
 ) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [originalTask] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  const { data: originalTask, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!originalTask) {
+  if (fetchError || !originalTask) {
     throw new Error("Task not found or unauthorized")
   }
 
-  const [existingCopy] = await sql`
-    SELECT * FROM tasks 
-    WHERE user_id = ${userId}
-      AND linked_task_id = ${taskId} 
-      AND column_name = ${newColumn}
-      AND week_start_date::date = ${weekStartDate}::date
-  `
+  const { data: existingCopy } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("linked_task_id", taskId)
+    .eq("column_name", newColumn)
+    .eq("week_start_date", weekStartDate)
+    .single()
 
-  if (existingCopy) {
-    return
-  }
+  if (existingCopy) return
 
-  await sql`
-    UPDATE tasks 
-    SET position = position + 1 
-    WHERE user_id = ${userId}
-      AND column_name = ${newColumn} 
-      AND position >= ${newPosition}
-      AND week_start_date::date = ${weekStartDate}::date
-  `
+  // Update positions
+  await supabase
+    .from("tasks")
+    .update({ position: supabase.sql`position + 1` })
+    .eq("user_id", userId)
+    .eq("column_name", newColumn)
+    .gte("position", newPosition)
+    .eq("week_start_date", weekStartDate)
 
-  const [newTask] = await sql`
-    INSERT INTO tasks (
-      user_id,
-      title, 
-      description, 
-      label, 
-      column_name, 
-      position, 
-      parent_id, 
-      week_start_date,
-      linked_task_id,
-      completed
-    )
-    VALUES (
-      ${userId},
-      ${originalTask.title}, 
-      ${originalTask.description || null}, 
-      'Hit',
-      ${newColumn}, 
-      ${newPosition}, 
-      ${null},
-      ${weekStartDate},
-      ${taskId},
-      ${false}
-    )
-    RETURNING id
-  `
+  // Insert new task
+  const { data: newTask, error: insertError } = await supabase
+    .from("tasks")
+    .insert({
+      user_id: userId,
+      title: originalTask.title,
+      description: originalTask.description,
+      label: "Hit",
+      column_name: newColumn,
+      position: newPosition,
+      parent_id: null,
+      week_start_date: weekStartDate,
+      linked_task_id: taskId,
+      completed: false,
+    })
+    .select()
+    .single()
 
-  await sql`
-    UPDATE tasks 
-    SET linked_task_id = ${newTask.id}
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  if (insertError) throw insertError
+
+  // Update original task
+  await supabase.from("tasks").update({ linked_task_id: newTask.id }).eq("id", taskId).eq("user_id", userId)
 }
 
 export async function copyTaskFromHotList(
@@ -144,36 +137,47 @@ export async function copyTaskFromHotList(
   weekStartDate?: string,
 ) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [originalTask] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  const { data: originalTask, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!originalTask) {
+  if (fetchError || !originalTask) {
     throw new Error("Task not found or unauthorized")
   }
 
-  const [existingCopy] = await sql`
-    SELECT * FROM tasks 
-    WHERE user_id = ${userId}
-      AND linked_task_id = ${taskId} 
-      AND column_name = ${targetColumn}
-      ${weekStartDate ? sql`AND week_start_date::date = ${weekStartDate}::date` : sql`AND week_start_date IS NULL`}
-  `
+  const { data: existingCopy } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("linked_task_id", taskId)
+    .eq("column_name", targetColumn)
+    .eq("week_start_date", weekStartDate || null)
+    .single()
 
   if (existingCopy) {
     return existingCopy.id
   }
 
-  await sql`
-    UPDATE tasks 
-    SET position = position + 1 
-    WHERE user_id = ${userId}
-      AND column_name = ${targetColumn} 
-      AND position >= ${newPosition}
-      ${weekStartDate ? sql`AND week_start_date::date = ${weekStartDate}::date` : sql`AND week_start_date IS NULL`}
-  `
+  // Update positions
+  let updateQuery = supabase
+    .from("tasks")
+    .update({ position: supabase.sql`position + 1` })
+    .eq("user_id", userId)
+    .eq("column_name", targetColumn)
+    .gte("position", newPosition)
+
+  if (weekStartDate) {
+    updateQuery = updateQuery.eq("week_start_date", weekStartDate)
+  } else {
+    updateQuery = updateQuery.is("week_start_date", null)
+  }
+
+  await updateQuery
 
   let newLabel = originalTask.label
   if (targetColumn === "the_door") {
@@ -182,155 +186,117 @@ export async function copyTaskFromHotList(
     newLabel = "Hit"
   }
 
-  const [newTask] = await sql`
-    INSERT INTO tasks (
-      user_id,
-      title, 
-      description, 
-      label, 
-      column_name, 
-      position, 
-      parent_id, 
-      week_start_date,
-      linked_task_id,
-      origin_column,
-      completed
-    )
-    VALUES (
-      ${userId},
-      ${originalTask.title}, 
-      ${originalTask.description || null}, 
-      ${newLabel}, 
-      ${targetColumn}, 
-      ${newPosition}, 
-      ${null},
-      ${weekStartDate || null},
-      ${taskId},
-      'hot_list',
-      false
-    )
-    RETURNING id
-  `
+  const { data: newTaskData, error: insertError } = await supabase.from("tasks").insert({
+    user_id: userId,
+    title: originalTask.title,
+    description: originalTask.description || null,
+    label: newLabel,
+    column_name: targetColumn,
+    position: newPosition,
+    parent_id: null,
+    week_start_date: weekStartDate || null,
+    linked_task_id: taskId,
+    origin_column: "hot_list",
+    completed: false,
+  })
 
-  await sql`
-    UPDATE tasks 
-    SET linked_task_id = ${newTask.id}
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  if (insertError) throw insertError
 
-  return newTask.id
+  const newTask = newTaskData?.[0]
+
+  // Update original task
+  await supabase.from("tasks").update({ linked_task_id: newTask?.id }).eq("id", taskId).eq("user_id", userId)
+
+  return newTask?.id
 }
 
 export async function updateTask(id: number, data: Partial<Task>) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${id} AND user_id = ${userId}
-  `
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .single()
 
-  if (!task) {
+  if (fetchError || !task) {
     throw new Error("Task not found or unauthorized")
   }
 
-  const updates: string[] = []
-  const values: any[] = []
-  let paramIndex = 1
+  const updates: any = {}
 
-  if (data.title !== undefined) {
-    updates.push(`title = $${paramIndex++}`)
-    values.push(data.title)
-  }
-  if (data.description !== undefined) {
-    updates.push(`description = $${paramIndex++}`)
-    values.push(data.description)
-  }
-  if (data.label !== undefined) {
-    updates.push(`label = $${paramIndex++}`)
-    values.push(data.label)
-  }
-  if (data.column_name !== undefined) {
-    updates.push(`column_name = $${paramIndex++}`)
-    values.push(data.column_name)
-  }
-  if (data.position !== undefined) {
-    updates.push(`position = $${paramIndex++}`)
-    values.push(data.position)
-  }
+  if (data.title !== undefined) updates.title = data.title
+  if (data.description !== undefined) updates.description = data.description
+  if (data.label !== undefined) updates.label = data.label
+  if (data.column_name !== undefined) updates.column_name = data.column_name
+  if (data.position !== undefined) updates.position = data.position
   if (data.completed !== undefined) {
-    updates.push(`completed = $${paramIndex++}`)
-    values.push(data.completed)
-    if (data.completed) {
-      updates.push(`completed_at = CURRENT_TIMESTAMP`)
-    } else {
-      updates.push(`completed_at = NULL`)
-    }
+    updates.completed = data.completed
+    updates.completed_at = data.completed ? new Date().toISOString() : null
   }
 
-  updates.push(`updated_at = CURRENT_TIMESTAMP`)
-  updates.push(`user_id = $${paramIndex++}`)
-  values.push(userId)
-  values.push(id)
+  updates.updated_at = new Date().toISOString()
 
-  const query = `UPDATE tasks SET ${updates.join(", ")} WHERE id = $${paramIndex} AND user_id = $${paramIndex - 1}`
+  const { error: updateError } = await supabase.from("tasks").update(updates).eq("id", id).eq("user_id", userId)
 
-  await sql.query(query, values)
+  if (updateError) throw updateError
 
-  if (data.completed !== undefined) {
-    const [linkedTask] = await sql`
-      SELECT linked_task_id FROM tasks 
-      WHERE id = ${id} AND user_id = ${userId}
-    `
-
-    if (linkedTask?.linked_task_id) {
-      await sql`
-        UPDATE tasks 
-        SET completed = ${data.completed},
-            completed_at = ${data.completed ? sql`CURRENT_TIMESTAMP` : null},
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${linkedTask.linked_task_id} AND user_id = ${userId}
-      `
-    }
+  // Update linked task if completed status changed
+  if (data.completed !== undefined && task.linked_task_id) {
+    await supabase
+      .from("tasks")
+      .update({
+        completed: data.completed,
+        completed_at: data.completed ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", task.linked_task_id)
+      .eq("user_id", userId)
   }
 }
 
 export async function deleteTask(id: number) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${id} AND user_id = ${userId}
-  `
+  const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", userId)
 
-  if (!task) {
-    throw new Error("Task not found or unauthorized")
-  }
-
-  await sql`
-    DELETE FROM tasks 
-    WHERE id = ${id} AND user_id = ${userId}
-  `
+  if (error) throw error
 }
 
 export async function reorderTask(taskId: number, direction: "up" | "down") {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!task) {
+  if (fetchError || !task) {
     throw new Error("Task not found or unauthorized")
   }
 
-  const columnTasks = await sql`
-    SELECT * FROM tasks 
-    WHERE user_id = ${userId}
-      AND column_name = ${task.column_name}
-      ${task.week_start_date ? sql`AND week_start_date::date = ${task.week_start_date}::date` : sql`AND week_start_date IS NULL`}
-    ORDER BY position ASC
-  `
+  let query = supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("column_name", task.column_name)
+    .order("position", { ascending: true })
+
+  if (task.week_start_date) {
+    query = query.eq("week_start_date", task.week_start_date)
+  } else {
+    query = query.is("week_start_date", null)
+  }
+
+  const { data: columnTasks } = await query
+
+  if (!columnTasks) return
 
   const currentIndex = columnTasks.findIndex((t: Task) => t.id === taskId)
   if (currentIndex === -1) return
@@ -341,17 +307,9 @@ export async function reorderTask(taskId: number, direction: "up" | "down") {
   const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
   const swapTask = columnTasks[swapIndex]
 
-  await sql`
-    UPDATE tasks 
-    SET position = ${swapTask.position}
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  await supabase.from("tasks").update({ position: swapTask.position }).eq("id", taskId).eq("user_id", userId)
 
-  await sql`
-    UPDATE tasks 
-    SET position = ${task.position}
-    WHERE id = ${swapTask.id} AND user_id = ${userId}
-  `
+  await supabase.from("tasks").update({ position: task.position }).eq("id", swapTask.id).eq("user_id", userId)
 }
 
 export async function moveTaskToColumn(
@@ -390,13 +348,16 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
   console.log("[v0] moveTask called:", { taskId, newColumn, newPosition, weekStartDate })
 
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!task) {
+  if (fetchError || !task) {
     throw new Error("Task not found or unauthorized")
   }
 
@@ -417,10 +378,12 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
   if (isHitListCopyMovingToDoor) {
     console.log("[v0] Hit List copy being moved back to Door - initiating merge")
 
-    const [doorOriginal] = await sql`
-      SELECT * FROM tasks 
-      WHERE id = ${task.linked_task_id} AND user_id = ${userId}
-    `
+    const { data: doorOriginal } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("id", task.linked_task_id)
+      .eq("user_id", userId)
+      .single()
 
     if (!doorOriginal) {
       console.log("[v0] ERROR: Door original not found for linked_task_id:", task.linked_task_id)
@@ -441,34 +404,26 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
     if (isDoorSubtask) {
       console.log("[v0] Merging: Restoring Door subtask, deleting Hit List copy")
 
-      await sql`
-        UPDATE tasks 
-        SET linked_task_id = NULL,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${task.linked_task_id} AND user_id = ${userId}
-      `
+      await supabase
+        .from("tasks")
+        .update({ linked_task_id: null, updated_at: new Date().toISOString() })
+        .eq("id", task.linked_task_id)
+        .eq("user_id", userId)
 
-      await sql`
-        DELETE FROM tasks 
-        WHERE id = ${taskId} AND user_id = ${userId}
-      `
+      await supabase.from("tasks").delete().eq("id", taskId).eq("user_id", userId)
 
       console.log("[v0] Merge complete: Door subtask restored to normal, Hit List copy deleted")
       return
     } else {
       console.log("[v0] Door original is a main task (not subtask) - restoring it")
 
-      await sql`
-        UPDATE tasks 
-        SET linked_task_id = NULL,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ${task.linked_task_id} AND user_id = ${userId}
-      `
+      await supabase
+        .from("tasks")
+        .update({ linked_task_id: null, updated_at: new Date().toISOString() })
+        .eq("id", task.linked_task_id)
+        .eq("user_id", userId)
 
-      await sql`
-        DELETE FROM tasks 
-        WHERE id = ${taskId} AND user_id = ${userId}
-      `
+      await supabase.from("tasks").delete().eq("id", taskId).eq("user_id", userId)
 
       console.log("[v0] Hit List copy deleted, Door main task restored")
       return
@@ -546,54 +501,80 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
   }
 
   const newCompleted = newColumn === "done" ? true : task.column_name === "done" ? false : task.completed
-  const newCompletedAt = newColumn === "done" ? new Date() : task.column_name === "done" ? null : task.completed_at
+  const newCompletedAt =
+    newColumn === "done" ? new Date().toISOString() : task.column_name === "done" ? null : task.completed_at
 
-  await sql`
-    UPDATE tasks 
-    SET position = position + 1 
-    WHERE user_id = ${userId}
-      AND column_name = ${newColumn} 
-      AND position >= ${newPosition}
-      ${targetWeekStartDate ? sql`AND week_start_date::date = ${targetWeekStartDate}::date` : sql`AND week_start_date IS NULL`}
-  `
+  // Update positions
+  let updateQuery = supabase
+    .from("tasks")
+    .update({ position: supabase.sql`position + 1` })
+    .eq("user_id", userId)
+    .eq("column_name", newColumn)
+    .gte("position", newPosition)
 
-  await sql`
-    UPDATE tasks 
-    SET column_name = ${newColumn}, 
-        position = ${newPosition}, 
-        week_start_date = ${targetWeekStartDate},
-        origin_column = ${originColumn},
-        label = ${newLabel},
-        completed = ${newCompleted},
-        completed_at = ${newCompletedAt},
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  if (targetWeekStartDate) {
+    updateQuery = updateQuery.eq("week_start_date", targetWeekStartDate)
+  } else {
+    updateQuery = updateQuery.is("week_start_date", null)
+  }
+
+  await updateQuery
+
+  // Move task
+  await supabase
+    .from("tasks")
+    .update({
+      column_name: newColumn,
+      position: newPosition,
+      week_start_date: targetWeekStartDate,
+      origin_column: originColumn,
+      label: newLabel,
+      completed: newCompleted,
+      completed_at: newCompletedAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .eq("user_id", userId)
 }
 
 export async function reorderTaskToPosition(taskId: number, overTaskId: number) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
-  const [overTask] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${overTaskId} AND user_id = ${userId}
-  `
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!task || !overTask || task.column_name !== overTask.column_name) {
+  const { data: overTask } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", overTaskId)
+    .eq("user_id", userId)
+    .single()
+
+  if (fetchError || !task || !overTask || task.column_name !== overTask.column_name) {
     throw new Error("Tasks not found, unauthorized, or in different columns")
   }
 
-  const columnTasks = await sql`
-    SELECT * FROM tasks 
-    WHERE user_id = ${userId}
-      AND column_name = ${task.column_name}
-      ${task.week_start_date ? sql`AND week_start_date::date = ${task.week_start_date}::date` : sql`AND week_start_date IS NULL`}
-    ORDER BY position ASC
-  `
+  let query = supabase
+    .from("tasks")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("column_name", task.column_name)
+    .order("position", { ascending: true })
+
+  if (task.week_start_date) {
+    query = query.eq("week_start_date", task.week_start_date)
+  } else {
+    query = query.is("week_start_date", null)
+  }
+
+  const { data: columnTasks } = await query
+
+  if (!columnTasks) return
 
   const taskIndex = columnTasks.findIndex((t: Task) => t.id === taskId)
   const overIndex = columnTasks.findIndex((t: Task) => t.id === overTaskId)
@@ -605,11 +586,11 @@ export async function reorderTaskToPosition(taskId: number, overTaskId: number) 
   reordered.splice(overIndex, 0, removed)
 
   for (let i = 0; i < reordered.length; i++) {
-    await sql`
-      UPDATE tasks 
-      SET position = ${i}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${reordered[i].id} AND user_id = ${userId}
-    `
+    await supabase
+      .from("tasks")
+      .update({ position: i, updated_at: new Date().toISOString() })
+      .eq("id", reordered[i].id)
+      .eq("user_id", userId)
   }
 }
 
@@ -620,24 +601,34 @@ export async function moveTaskBetweenDoorAndHitList(
   weekStartDate?: string,
 ) {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [task] = await sql`
-    SELECT * FROM tasks 
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  const { data: task, error: fetchError } = await supabase
+    .from("tasks")
+    .select("*")
+    .eq("id", taskId)
+    .eq("user_id", userId)
+    .single()
 
-  if (!task) {
+  if (fetchError || !task) {
     throw new Error("Task not found or unauthorized")
   }
 
-  await sql`
-    UPDATE tasks 
-    SET position = position + 1 
-    WHERE user_id = ${userId}
-      AND column_name = ${targetColumn} 
-      AND position >= ${newPosition}
-      ${weekStartDate ? sql`AND week_start_date::date = ${weekStartDate}::date` : sql`AND week_start_date IS NULL`}
-  `
+  // Update positions
+  let updateQuery = supabase
+    .from("tasks")
+    .update({ position: supabase.sql`position + 1` })
+    .eq("user_id", userId)
+    .eq("column_name", targetColumn)
+    .gte("position", newPosition)
+
+  if (weekStartDate) {
+    updateQuery = updateQuery.eq("week_start_date", weekStartDate)
+  } else {
+    updateQuery = updateQuery.is("week_start_date", null)
+  }
+
+  await updateQuery
 
   let newLabel = task.label
   if (targetColumn === "the_door") {
@@ -648,30 +639,33 @@ export async function moveTaskBetweenDoorAndHitList(
 
   const isMovingFromDoorToHitList = task.column_name === "the_door" && targetColumn.startsWith("hit_list_")
 
-  await sql`
-    UPDATE tasks 
-    SET column_name = ${targetColumn}, 
-        position = ${newPosition}, 
-        week_start_date = ${weekStartDate || null},
-        label = ${newLabel},
-        is_moved_to_hitlist = ${isMovingFromDoorToHitList ? true : sql`is_moved_to_hitlist`},
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = ${taskId} AND user_id = ${userId}
-  `
+  await supabase
+    .from("tasks")
+    .update({
+      column_name: targetColumn,
+      position: newPosition,
+      week_start_date: weekStartDate || null,
+      label: newLabel,
+      is_moved_to_hitlist: isMovingFromDoorToHitList ? true : task.is_moved_to_hitlist,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId)
+    .eq("user_id", userId)
 
   if (task.linked_task_id) {
-    await sql`
-      UPDATE tasks 
-      SET updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${task.linked_task_id} AND user_id = ${userId}
-    `
+    await supabase
+      .from("tasks")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", task.linked_task_id)
+      .eq("user_id", userId)
   }
 }
 
 export async function checkAndResetWeekly() {
   const userId = await getUserId()
+  const supabase = await createClient()
 
-  const [setting] = await sql`SELECT value FROM settings WHERE key = 'last_weekly_reset'`
+  const { data: setting } = await supabase.from("settings").select("value").eq("key", "last_weekly_reset").single()
 
   if (!setting) return
 
@@ -683,16 +677,20 @@ export async function checkAndResetWeekly() {
   const dayOfWeek = currentDate.getDay()
 
   if (dayOfWeek === 1 && now - lastReset >= oneWeek) {
-    await sql`
-      UPDATE tasks 
-      SET column_name = 'done', completed = true, completed_at = CURRENT_TIMESTAMP
-      WHERE user_id = ${userId} AND column_name LIKE 'hit_list_%'
-    `
+    await supabase
+      .from("tasks")
+      .update({
+        column_name: "done",
+        completed: true,
+        completed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId)
+      .like("column_name", "hit_list_%")
 
-    await sql`
-      UPDATE settings 
-      SET value = ${now.toString()}, updated_at = CURRENT_TIMESTAMP
-      WHERE key = 'last_weekly_reset'
-    `
+    await supabase
+      .from("settings")
+      .update({ value: now.toString(), updated_at: new Date().toISOString() })
+      .eq("key", "last_weekly_reset")
   }
 }

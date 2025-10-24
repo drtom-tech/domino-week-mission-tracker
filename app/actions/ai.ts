@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { sql } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 
 interface Subtask {
   title: string
@@ -124,32 +124,38 @@ export async function generateSubtaskSuggestions(
 
 export async function createSubtasks(taskId: number, subtasks: Subtask[]) {
   try {
-    // Get the parent task to inherit its properties
-    const parentTask = await sql`
-      SELECT column_name, week_start_date FROM tasks WHERE id = ${taskId}
-    `
+    const supabase = await createClient()
 
-    if (parentTask.length === 0) {
+    // Get the parent task to inherit its properties
+    const { data: parentTask, error: fetchError } = await supabase
+      .from("tasks")
+      .select("column_name, week_start_date")
+      .eq("id", taskId)
+      .single()
+
+    if (fetchError || !parentTask) {
       throw new Error("Parent task not found")
     }
 
     // Create subtasks in the database as separate cards
     const createdSubtasks = []
     for (let i = 0; i < subtasks.length; i++) {
-      const result = await sql`
-        INSERT INTO tasks (title, description, label, column_name, position, parent_id, week_start_date)
-        VALUES (
-          ${subtasks[i].title},
-          ${subtasks[i].description},
-          'Door',
-          ${parentTask[0].column_name},
-          ${i + 1000},
-          ${taskId},
-          ${parentTask[0].week_start_date}
-        )
-        RETURNING *
-      `
-      createdSubtasks.push(result[0])
+      const { data, error } = await supabase
+        .from("tasks")
+        .insert({
+          title: subtasks[i].title,
+          description: subtasks[i].description,
+          label: "Door",
+          column_name: parentTask.column_name,
+          position: i + 1000,
+          parent_id: taskId,
+          week_start_date: parentTask.week_start_date,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+      createdSubtasks.push(data)
     }
 
     revalidatePath("/")
@@ -162,7 +168,12 @@ export async function createSubtasks(taskId: number, subtasks: Subtask[]) {
 
 export async function deleteSubtask(subtaskId: number) {
   try {
-    await sql`DELETE FROM tasks WHERE id = ${subtaskId}`
+    const supabase = await createClient()
+
+    const { error } = await supabase.from("tasks").delete().eq("id", subtaskId)
+
+    if (error) throw error
+
     revalidatePath("/")
     return { success: true }
   } catch (error) {

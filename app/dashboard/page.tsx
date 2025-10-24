@@ -8,9 +8,11 @@ import { Menu } from "lucide-react"
 import useSWR from "swr"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { useSession, signIn, signOut } from "@/components/session-provider"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
+import type { User } from "@supabase/supabase-js"
 
 const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE !== "false"
 
@@ -86,7 +88,33 @@ const MOCK_TASKS = [
 ]
 
 export default function Dashboard() {
-  const { data: session, status } = useSession()
+  const [user, setUser] = useState<User | null>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
+  const supabase = createClient()
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut()
+    router.push("/")
+  }
+
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
 
@@ -122,7 +150,7 @@ export default function Dashboard() {
   const displayTasks = IS_PREVIEW ? MOCK_TASKS : tasks || []
   const isLoadingData = !IS_PREVIEW && isLoading && !tasks
 
-  if (isLoadingData || !currentWeekStart) {
+  if (loading || !currentWeekStart) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -139,12 +167,12 @@ export default function Dashboard() {
                 <Link href="/mission" className="hidden md:block">
                   <Button variant="outline">Mission Board</Button>
                 </Link>
-                {status === "loading" ? null : !session ? (
-                  <Button variant="ghost" onClick={() => signIn()}>
-                    Sign In
-                  </Button>
+                {loading ? null : !user ? (
+                  <Link href="/auth/login">
+                    <Button variant="ghost">Sign In</Button>
+                  </Link>
                 ) : (
-                  <Button variant="ghost" onClick={() => signOut()}>
+                  <Button variant="ghost" onClick={handleSignOut}>
                     Sign Out
                   </Button>
                 )}
@@ -199,12 +227,12 @@ export default function Dashboard() {
               <Link href="/mission" className="hidden md:block">
                 <Button variant="outline">Mission Board</Button>
               </Link>
-              {status === "loading" ? null : !session ? (
-                <Button variant="ghost" onClick={() => signIn()}>
-                  Sign In
-                </Button>
+              {loading ? null : !user ? (
+                <Link href="/auth/login">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
               ) : (
-                <Button variant="ghost" onClick={() => signOut()}>
+                <Button variant="ghost" onClick={handleSignOut}>
                   Sign Out
                 </Button>
               )}

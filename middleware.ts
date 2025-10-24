@@ -1,29 +1,19 @@
-import { NextResponse } from "next/server"
+import { updateSession } from "@/lib/supabase/middleware"
 import type { NextRequest } from "next/server"
 
-const IS_PREVIEW = process.env.NEXT_PUBLIC_PREVIEW_MODE === "true"
-
 export async function middleware(request: NextRequest) {
-  // In preview mode, allow all requests through without authentication
-  if (IS_PREVIEW) {
-    return NextResponse.next()
-  }
-
-  // In production, use NextAuth middleware
-  try {
-    const { default: withAuth } = await import("next-auth/middleware")
-    const authMiddleware = withAuth({
-      pages: {
-        signIn: "/auth/signin",
-      },
-    })
-    return authMiddleware(request as any)
-  } catch (error) {
-    console.error("[v0] NextAuth middleware error:", error)
-    return NextResponse.next()
-  }
+  return await updateSession(request)
 }
 
 export const config = {
-  matcher: ["/((?!.*\\..*|_next).*)", "/", "/(api|trpc)(.*)"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 }
