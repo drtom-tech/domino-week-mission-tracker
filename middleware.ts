@@ -2,7 +2,13 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
-  const isPreview = request.nextUrl.hostname.includes("v0.app")
+  const hostname = request.nextUrl.hostname
+  const isPreview =
+    hostname.includes("v0.app") ||
+    hostname.includes("vusercontent.net") ||
+    hostname.includes("vercel.app") ||
+    hostname.includes("localhost") ||
+    hostname.includes("127.0.0.1")
 
   if (isPreview) {
     return NextResponse.next()
