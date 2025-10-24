@@ -30,7 +30,9 @@ export default function Home() {
   const [weekOffset, setWeekOffset] = useState(0)
 
   useEffect(() => {
+    console.log("[v0] Dashboard auth check - authLoading:", authLoading, "user:", user)
     if (!authLoading && !user) {
+      console.log("[v0] Redirecting to sign-in from dashboard")
       router.push("/auth/signin")
     }
   }, [user, authLoading, router])
@@ -62,11 +64,23 @@ export default function Home() {
     revalidateOnReconnect: true,
   })
 
-  if (authLoading || !user) {
+  if (authLoading) {
+    console.log("[v0] Dashboard showing loading state")
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    console.log("[v0] Dashboard - no user, showing loading")
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Redirecting...</p>
         </div>
       </div>
     )
