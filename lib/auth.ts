@@ -1,5 +1,5 @@
 import type { NextAuthOptions } from "next-auth"
-// import GoogleProvider from "next-auth/providers/google"
+import GoogleProvider from "next-auth/providers/google"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { db } from "./db/index"
@@ -9,10 +9,10 @@ import { eq } from "drizzle-orm"
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET || "development-secret-change-in-production",
   providers: [
-    // GoogleProvider({
-    //   clientId: process.env.GOOGLE_CLIENT_ID || "",
-    //   clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-    // }),
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
@@ -57,8 +57,28 @@ export const authOptions: NextAuthOptions = {
     signIn: "/auth/signin",
   },
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
+    async jwt({ token, user, account }) {
+      if (account?.provider === "google" && user) {
+        try {
+          const [existingUser] = await db.select().from(users).where(eq(users.email, user.email!)).limit(1)
+
+          if (!existingUser) {
+            const [newUser] = await db
+              .insert(users)
+              .values({
+                email: user.email!,
+                name: user.name,
+                image: user.image,
+              })
+              .returning()
+            token.id = newUser.id
+          } else {
+            token.id = existingUser.id
+          }
+        } catch (error) {
+          console.error("Error creating user:", error)
+        }
+      } else if (user) {
         token.id = user.id
       }
       return token
