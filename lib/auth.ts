@@ -31,29 +31,44 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        try {
+          if (!credentials?.email || !credentials?.password) {
+            console.log("[v0] Missing email or password credentials")
+            return null
+          }
+
+          const users = await sql`
+            SELECT * FROM users WHERE email = ${credentials.email}
+          `
+
+          if (users.length === 0) {
+            console.log("[v0] No user found with email:", credentials.email)
+            return null
+          }
+
+          const user = users[0]
+
+          // Validate user object has required fields
+          if (!user.password_hash) {
+            console.error("[v0] User record missing password_hash field for email:", credentials.email)
+            return null
+          }
+
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash)
+
+          if (!isPasswordValid) {
+            console.log("[v0] Invalid password for email:", credentials.email)
+            return null
+          }
+
+          return {
+            id: user.id.toString(),
+            email: user.email,
+            name: user.name,
+          }
+        } catch (error) {
+          console.error("[v0] Authorization error:", error)
           return null
-        }
-
-        const users = await sql`
-          SELECT * FROM users WHERE email = ${credentials.email}
-        `
-
-        if (users.length === 0) {
-          return null
-        }
-
-        const user = users[0]
-        const isPasswordValid = await bcrypt.compare(credentials.password, user.password_hash)
-
-        if (!isPasswordValid) {
-          return null
-        }
-
-        return {
-          id: user.id.toString(),
-          email: user.email,
-          name: user.name,
         }
       },
     }),
@@ -70,19 +85,24 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id
       }
       if (account?.provider === "google") {
-        // Handle Google OAuth user creation/lookup
-        const users = await sql`
-          SELECT * FROM users WHERE email = ${user.email}
-        `
-        if (users.length === 0) {
-          const newUsers = await sql`
-            INSERT INTO users (email, name, password_hash)
-            VALUES (${user.email}, ${user.name}, '')
-            RETURNING id
+        try {
+          // Handle Google OAuth user creation/lookup
+          const users = await sql`
+            SELECT * FROM users WHERE email = ${user.email}
           `
-          token.id = newUsers[0].id.toString()
-        } else {
-          token.id = users[0].id.toString()
+          if (users.length === 0) {
+            const newUsers = await sql`
+              INSERT INTO users (email, name, password_hash)
+              VALUES (${user.email}, ${user.name}, '')
+              RETURNING id
+            `
+            token.id = newUsers[0].id.toString()
+          } else {
+            token.id = users[0].id.toString()
+          }
+        } catch (error) {
+          console.error("[v0] JWT callback error:", error)
+          // Keep existing token.id if available
         }
       }
       return token
