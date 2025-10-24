@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useMockAuth } from "@/lib/mock-auth"
 import { Button } from "@/components/ui/button"
@@ -13,14 +13,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { Chrome } from "lucide-react"
 
-const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
-
 export default function SignInPage() {
   const router = useRouter()
   const mockAuth = useMockAuth()
   const [isLoading, setIsLoading] = useState(false)
+  const [isPreview, setIsPreview] = useState(true) // Default to true for preview
 
-  console.log("[v0] SignInPage - isPreview:", isPreview)
+  useEffect(() => {
+    // Check if we're in preview mode by looking at the hostname
+    const hostname = window.location.hostname
+    const isV0Preview = hostname.includes("v0.app") || hostname.includes("v0.dev") || hostname.includes("localhost")
+    setIsPreview(isV0Preview)
+    console.log("[v0] SignInPage - hostname:", hostname, "isPreview:", isV0Preview)
+  }, [])
 
   const handleGoogleSignIn = async () => {
     if (isPreview) {
@@ -46,16 +51,18 @@ export default function SignInPage() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    console.log("[v0] Attempting sign in with:", email)
+    console.log("[v0] Attempting sign in with:", email, "isPreview:", isPreview)
 
     try {
       if (isPreview) {
         console.log("[v0] Using mock auth for sign in")
         await mockAuth.signIn(email, password)
-        console.log("[v0] Mock auth sign in successful, user:", mockAuth.user)
+        console.log("[v0] Mock auth sign in successful")
         toast.success("Signed in successfully!")
-        router.push("/")
-        router.refresh()
+        setTimeout(() => {
+          router.push("/")
+          router.refresh()
+        }, 100)
       } else {
         const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
@@ -88,16 +95,18 @@ export default function SignInPage() {
     const password = formData.get("password") as string
     const name = formData.get("name") as string
 
-    console.log("[v0] Attempting sign up with:", email)
+    console.log("[v0] Attempting sign up with:", email, "isPreview:", isPreview)
 
     try {
       if (isPreview) {
         console.log("[v0] Using mock auth for sign up")
         await mockAuth.signUp(email, password, name)
-        console.log("[v0] Mock auth sign up successful, user:", mockAuth.user)
+        console.log("[v0] Mock auth sign up successful")
         toast.success("Account created successfully!")
-        router.push("/")
-        router.refresh()
+        setTimeout(() => {
+          router.push("/")
+          router.refresh()
+        }, 100)
       } else {
         const response = await fetch("/api/auth/signup", {
           method: "POST",
@@ -183,7 +192,7 @@ export default function SignInPage() {
                     id="signin-email"
                     name="email"
                     type="email"
-                    placeholder={isPreview ? "any@email.com" : "you@example.com"}
+                    placeholder={isPreview ? "any@email.com (e.g., asdf@asdf.com)" : "you@example.com"}
                     required
                   />
                 </div>
@@ -193,7 +202,7 @@ export default function SignInPage() {
                     id="signin-password"
                     name="password"
                     type="password"
-                    placeholder={isPreview ? "any password" : ""}
+                    placeholder={isPreview ? "any password (e.g., asdf)" : ""}
                     required
                   />
                 </div>
@@ -238,7 +247,7 @@ export default function SignInPage() {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder={isPreview ? "any@email.com" : "you@example.com"}
+                    placeholder={isPreview ? "any@email.com (e.g., asdf@asdf.com)" : "you@example.com"}
                     required
                   />
                 </div>
@@ -248,7 +257,7 @@ export default function SignInPage() {
                     id="signup-password"
                     name="password"
                     type="password"
-                    placeholder={isPreview ? "any password" : ""}
+                    placeholder={isPreview ? "any password (e.g., asdf)" : ""}
                     required
                     minLength={isPreview ? 1 : 6}
                   />
