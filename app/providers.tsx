@@ -8,21 +8,14 @@ import { Toaster } from "@/components/ui/sonner"
 import { useEffect, useState } from "react"
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [isPreview, setIsPreview] = useState(false)
-  const [mounted, setMounted] = useState(false)
+  const [isPreview, setIsPreview] = useState<boolean | null>(null)
 
   useEffect(() => {
     setIsPreview(window.location.hostname.includes("v0.app"))
-    setMounted(true)
   }, [])
 
-  if (!mounted) {
-    return (
-      <MockAuthProvider>
-        {children}
-        <Toaster />
-      </MockAuthProvider>
-    )
+  if (isPreview === null) {
+    return null
   }
 
   if (isPreview) {

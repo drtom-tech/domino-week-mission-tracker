@@ -2,22 +2,18 @@
 
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
 import { useMockAuth } from "./mock-auth"
-import { useEffect, useState } from "react"
-
-const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
+import { useState, useEffect } from "react"
 
 export function useAuth() {
   const mockAuth = useMockAuth()
-  const nextAuthSession = useSession()
-  const [authSession, setAuthSession] = useState({ data: null, status: "unauthenticated" as const })
+  const { data: session, status } = useSession()
+  const [isPreview, setIsPreview] = useState<boolean | null>(null)
 
   useEffect(() => {
-    if (!isPreview) {
-      setAuthSession(nextAuthSession)
-    }
-  }, [isPreview, nextAuthSession])
+    setIsPreview(typeof window !== "undefined" && window.location.hostname.includes("v0.app"))
+  }, [])
 
-  if (isPreview) {
+  if (isPreview === true) {
     return {
       user: mockAuth.user,
       isLoading: mockAuth.isLoading,
@@ -25,9 +21,17 @@ export function useAuth() {
     }
   }
 
+  if (isPreview === false) {
+    return {
+      user: session?.user || null,
+      isLoading: status === "loading",
+      signOut: () => nextAuthSignOut({ callbackUrl: "/auth/signin" }),
+    }
+  }
+
   return {
-    user: authSession.data?.user || null,
-    isLoading: authSession.status === "loading",
-    signOut: () => nextAuthSignOut({ callbackUrl: "/auth/signin" }),
+    user: null,
+    isLoading: true,
+    signOut: async () => {},
   }
 }
