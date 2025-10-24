@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState } from "react"
-import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useMockAuth } from "@/lib/mock-auth"
 import { Button } from "@/components/ui/button"
@@ -14,13 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { Chrome } from "lucide-react"
 
-// Detect if we're in v0 preview environment
 const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
 
 export default function SignInPage() {
   const router = useRouter()
   const mockAuth = useMockAuth()
   const [isLoading, setIsLoading] = useState(false)
+
+  console.log("[v0] SignInPage - isPreview:", isPreview)
 
   const handleGoogleSignIn = async () => {
     if (isPreview) {
@@ -30,6 +30,7 @@ export default function SignInPage() {
 
     setIsLoading(true)
     try {
+      const { signIn } = await import("next-auth/react")
       await signIn("google", { callbackUrl: "/dashboard" })
     } catch (error) {
       toast.error("Failed to sign in with Google")
@@ -45,15 +46,18 @@ export default function SignInPage() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
+    console.log("[v0] Attempting sign in with:", email)
+
     try {
       if (isPreview) {
-        // Use mock auth in preview
+        console.log("[v0] Using mock auth for sign in")
         await mockAuth.signIn(email, password)
+        console.log("[v0] Mock auth sign in successful, user:", mockAuth.user)
         toast.success("Signed in successfully!")
         router.push("/")
         router.refresh()
       } else {
-        // Use NextAuth in production
+        const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
           email,
           password,
@@ -68,6 +72,7 @@ export default function SignInPage() {
         }
       }
     } catch (error) {
+      console.error("[v0] Sign in error:", error)
       toast.error("An error occurred during sign in")
     } finally {
       setIsLoading(false)
@@ -83,15 +88,17 @@ export default function SignInPage() {
     const password = formData.get("password") as string
     const name = formData.get("name") as string
 
+    console.log("[v0] Attempting sign up with:", email)
+
     try {
       if (isPreview) {
-        // Use mock auth in preview
+        console.log("[v0] Using mock auth for sign up")
         await mockAuth.signUp(email, password, name)
+        console.log("[v0] Mock auth sign up successful, user:", mockAuth.user)
         toast.success("Account created successfully!")
         router.push("/")
         router.refresh()
       } else {
-        // Use real signup in production
         const response = await fetch("/api/auth/signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -107,6 +114,7 @@ export default function SignInPage() {
 
         toast.success("Account created! Signing you in...")
 
+        const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
           email,
           password,
@@ -121,6 +129,7 @@ export default function SignInPage() {
         }
       }
     } catch (error) {
+      console.error("[v0] Sign up error:", error)
       toast.error("An error occurred during sign up")
     } finally {
       setIsLoading(false)
