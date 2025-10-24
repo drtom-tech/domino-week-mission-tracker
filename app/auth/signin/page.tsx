@@ -12,19 +12,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { Chrome } from "lucide-react"
+import { isPreviewEnvironment } from "@/lib/auth-helpers"
 
 export default function SignInPage() {
   const router = useRouter()
   const mockAuth = useMockAuth()
   const [isLoading, setIsLoading] = useState(false)
-  const [isPreview, setIsPreview] = useState(true) // Default to true for preview
+  const [isPreview, setIsPreview] = useState(false)
 
   useEffect(() => {
-    // Check if we're in preview mode by looking at the hostname
-    const hostname = window.location.hostname
-    const isV0Preview = hostname.includes("v0.app") || hostname.includes("v0.dev") || hostname.includes("localhost")
-    setIsPreview(isV0Preview)
-    console.log("[v0] SignInPage - hostname:", hostname, "isPreview:", isV0Preview)
+    setIsPreview(isPreviewEnvironment())
+    console.log("[v0] SignInPage mounted - isPreview:", isPreviewEnvironment(), "hostname:", window.location.hostname)
   }, [])
 
   const handleGoogleSignIn = async () => {
@@ -59,10 +57,8 @@ export default function SignInPage() {
         await mockAuth.signIn(email, password)
         console.log("[v0] Mock auth sign in successful")
         toast.success("Signed in successfully!")
-        setTimeout(() => {
-          router.push("/")
-          router.refresh()
-        }, 100)
+        router.push("/")
+        router.refresh()
       } else {
         const { signIn } = await import("next-auth/react")
         const result = await signIn("credentials", {
@@ -103,10 +99,8 @@ export default function SignInPage() {
         await mockAuth.signUp(email, password, name)
         console.log("[v0] Mock auth sign up successful")
         toast.success("Account created successfully!")
-        setTimeout(() => {
-          router.push("/")
-          router.refresh()
-        }, 100)
+        router.push("/")
+        router.refresh()
       } else {
         const response = await fetch("/api/auth/signup", {
           method: "POST",
@@ -192,7 +186,7 @@ export default function SignInPage() {
                     id="signin-email"
                     name="email"
                     type="email"
-                    placeholder={isPreview ? "any@email.com (e.g., asdf@asdf.com)" : "you@example.com"}
+                    placeholder={isPreview ? "any@email.com" : "you@example.com"}
                     required
                   />
                 </div>
@@ -202,7 +196,7 @@ export default function SignInPage() {
                     id="signin-password"
                     name="password"
                     type="password"
-                    placeholder={isPreview ? "any password (e.g., asdf)" : ""}
+                    placeholder={isPreview ? "any password" : ""}
                     required
                   />
                 </div>
@@ -247,7 +241,7 @@ export default function SignInPage() {
                     id="signup-email"
                     name="email"
                     type="email"
-                    placeholder={isPreview ? "any@email.com (e.g., asdf@asdf.com)" : "you@example.com"}
+                    placeholder={isPreview ? "any@email.com" : "you@example.com"}
                     required
                   />
                 </div>
@@ -257,7 +251,7 @@ export default function SignInPage() {
                     id="signup-password"
                     name="password"
                     type="password"
-                    placeholder={isPreview ? "any password (e.g., asdf)" : ""}
+                    placeholder={isPreview ? "any password" : ""}
                     required
                     minLength={isPreview ? 1 : 6}
                   />

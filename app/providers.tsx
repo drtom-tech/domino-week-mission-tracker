@@ -4,9 +4,10 @@ import type React from "react"
 import { MockAuthProvider } from "@/lib/mock-auth"
 import { Toaster } from "@/components/ui/sonner"
 import { SessionProvider } from "next-auth/react"
+import { isPreviewEnvironment } from "@/lib/auth-helpers"
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
+  const isPreview = isPreviewEnvironment()
 
   if (isPreview) {
     return (

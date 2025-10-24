@@ -2,12 +2,13 @@
 
 import { useMockAuth } from "./mock-auth"
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
-
-const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
+import { isPreviewEnvironment } from "./auth-helpers"
 
 export function useAuth() {
   const mockAuth = useMockAuth()
   const { data: session, status } = useSession()
+
+  const isPreview = isPreviewEnvironment()
 
   if (isPreview) {
     return {
