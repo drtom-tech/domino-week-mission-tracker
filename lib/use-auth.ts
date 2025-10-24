@@ -6,7 +6,9 @@ import { isPreviewEnvironment } from "./auth-helpers"
 
 export function useAuth() {
   const mockAuth = useMockAuth()
-  const { data: session, status } = useSession()
+  const sessionResult = useSession()
+  const session = sessionResult?.data || null
+  const status = sessionResult?.status || "loading"
 
   const isPreview = isPreviewEnvironment()
 

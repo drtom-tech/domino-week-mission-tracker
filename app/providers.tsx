@@ -9,21 +9,19 @@ import { isPreviewEnvironment } from "@/lib/auth-helpers"
 export function Providers({ children }: { children: React.ReactNode }) {
   const isPreview = isPreviewEnvironment()
 
-  if (isPreview) {
-    return (
-      <MockAuthProvider>
-        {children}
-        <Toaster />
-      </MockAuthProvider>
-    )
-  }
-
   return (
     <MockAuthProvider>
-      <SessionProvider>
-        {children}
-        <Toaster />
-      </SessionProvider>
+      {isPreview ? (
+        <>
+          {children}
+          <Toaster />
+        </>
+      ) : (
+        <SessionProvider>
+          {children}
+          <Toaster />
+        </SessionProvider>
+      )}
     </MockAuthProvider>
   )
 }
