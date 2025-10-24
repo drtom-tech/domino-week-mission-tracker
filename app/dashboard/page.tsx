@@ -12,7 +12,6 @@ import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
 import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { User } from "lucide-react"
 
 export default function Home() {
   const { data: session, status } = useSession()
@@ -61,7 +60,7 @@ export default function Home() {
     )
   }
 
-  if ((isLoading && !tasks) || !currentWeekStart || status === "loading") {
+  if ((isLoading && !tasks) || !currentWeekStart) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -78,11 +77,13 @@ export default function Home() {
                 <Link href="/mission" className="hidden md:block">
                   <Button variant="outline">Mission Board</Button>
                 </Link>
-                {!session ? (
-                  <Button variant="ghost" onClick={() => signIn()}>Sign In</Button>
+                {status === "loading" ? null : !session ? (
+                  <Button variant="ghost" onClick={() => signIn()}>
+                    Sign In
+                  </Button>
                 ) : (
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
+                  <Button variant="ghost" onClick={() => signOut()}>
+                    Sign Out
                   </Button>
                 )}
                 <Sheet>
@@ -131,11 +132,13 @@ export default function Home() {
               <Link href="/mission" className="hidden md:block">
                 <Button variant="outline">Mission Board</Button>
               </Link>
-              {!session ? (
-                <Button variant="ghost" onClick={() => signIn()}>Sign In</Button>
+              {status === "loading" ? null : !session ? (
+                <Button variant="ghost" onClick={() => signIn()}>
+                  Sign In
+                </Button>
               ) : (
-                <Button variant="ghost" size="icon" onClick={() => signOut()}>
-                  <User className="h-5 w-5" />
+                <Button variant="ghost" onClick={() => signOut()}>
+                  Sign Out
                 </Button>
               )}
               <Sheet>

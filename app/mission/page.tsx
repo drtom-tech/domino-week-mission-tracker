@@ -5,28 +5,13 @@ import { MissionBoard } from "@/components/mission-board"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, User } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
 import { useSession, signIn, signOut } from "next-auth/react"
-import { useState, useEffect, useMemo } from "react"
-import { getCurrentQuarter, formatQuarter, addQuarters } from "@/lib/utils"
 
 export default function MissionPage() {
   const { data: session, status } = useSession()
-  const [quarterOffset, setQuarterOffset] = useState(0)
-  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null)
-
-  const currentQuarter = useMemo(() => {
-    const { year, quarter } = getCurrentQuarter()
-    return addQuarters(year, quarter, quarterOffset)
-  }, [quarterOffset])
-
-  const quarterLabel = formatQuarter(currentQuarter.year, currentQuarter.quarter)
-
-  useEffect(() => {
-    setPortalContainer(document.getElementById("quarter-nav-container"))
-  }, [])
 
   const {
     data: tasks,
@@ -37,7 +22,7 @@ export default function MissionPage() {
     revalidateOnReconnect: true,
   })
 
-  if (isLoading || status === "loading") {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <header className="border-b">
@@ -47,13 +32,13 @@ export default function MissionPage() {
               <Link href="/dashboard">
                 <Button variant="outline">Kanban Board</Button>
               </Link>
-              {!session ? (
+              {status === "loading" ? null : !session ? (
                 <Button variant="outline" size="sm" onClick={() => signIn()}>
                   Sign in
                 </Button>
               ) : (
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
+                <Button variant="ghost" onClick={() => signOut()}>
+                  Sign Out
                 </Button>
               )}
             </div>
@@ -97,26 +82,20 @@ export default function MissionPage() {
             <Link href="/dashboard">
               <Button variant="outline">Kanban Board</Button>
             </Link>
-            {!session ? (
+            {status === "loading" ? null : !session ? (
               <Button variant="outline" size="sm" onClick={() => signIn()}>
                 Sign in
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" onClick={() => signOut()}>
-                <User className="h-5 w-5" />
+              <Button variant="ghost" onClick={() => signOut()}>
+                Sign Out
               </Button>
             )}
           </div>
         </div>
       </header>
       <main>
-        <MissionBoard 
-          tasks={tasks || []} 
-          quarterOffset={quarterOffset}
-          onQuarterOffsetChange={setQuarterOffset}
-          quarterLabel={quarterLabel}
-          portalContainer={portalContainer}
-        />
+        <MissionBoard tasks={tasks || []} />
       </main>
     </div>
   )

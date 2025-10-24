@@ -1,6 +1,7 @@
 "use server"
 
-import { auth } from "@/auth"
+import { getServerSession } from "next-auth"
+import { authOptions } from "./auth"
 import { headers } from "next/headers"
 
 export async function getUserId(): Promise<string> {
@@ -15,12 +16,11 @@ export async function getUserId(): Promise<string> {
   }
 
   // In production, use NextAuth authentication
-  const session = await auth()
+  const session = await getServerSession(authOptions)
 
-  if (!session?.user?.email) {
+  if (!session?.user?.id) {
     throw new Error("Unauthorized - Please sign in")
   }
 
-  // Use email as the user ID for NextAuth
-  return session.user.email
+  return session.user.id
 }
