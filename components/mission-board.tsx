@@ -54,7 +54,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           tasks={getTasksByColumn(selectedCol.id)}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton={selectedCol.id === "mission_list" || selectedCol.id === "yearly_targets"}
+          showAddButton={selectedCol.id === "mission_list"}
           onAddTask={() => {}}
         />
       </div>
@@ -95,8 +95,6 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           tasks={getTasksByColumn("yearly_targets")}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton
-          onAddTask={() => {}}
           className="md:col-span-1"
         />
 
