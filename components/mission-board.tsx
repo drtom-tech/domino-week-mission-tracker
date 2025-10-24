@@ -114,7 +114,7 @@ export function MissionBoard({
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton={selectedCol.id === "mission_list"}
-          onAddTask={onTasksChange}
+          onTasksChange={onTasksChange}
         />
       </div>
     )
@@ -145,7 +145,7 @@ export function MissionBoard({
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton
-          onAddTask={onTasksChange}
+          onTasksChange={onTasksChange}
           className="md:col-span-1"
         />
 
