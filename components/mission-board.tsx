@@ -4,20 +4,69 @@ import type { Task } from "@/lib/db"
 import { KanbanColumn } from "./kanban-column"
 import { AddTaskDialog } from "./add-task-dialog"
 import { MobileColumnSelector } from "./mobile-column-selector"
+import { QuarterNavigator } from "./quarter-navigator"
 import { moveTask } from "@/app/actions/tasks"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import { createPortal } from "react-dom"
+import { formatQuarterLabel, isDateInQuarter } from "@/lib/utils"
 
 interface MissionBoardProps {
   tasks: Task[]
+  currentQuarterStart: string
+  quarterOffset: number
+  onQuarterOffsetChange: (offset: number) => void
+  onTasksChange?: () => void
+  portalContainer: HTMLElement | null
 }
 
-export function MissionBoard({ tasks }: MissionBoardProps) {
+export function MissionBoard({
+  tasks,
+  currentQuarterStart,
+  quarterOffset,
+  onQuarterOffsetChange,
+  onTasksChange,
+  portalContainer,
+}: MissionBoardProps) {
   const [mobileColumn, setMobileColumn] = useState("mission_list")
 
+  const subtaskMap = useMemo(() => {
+    const map = new Map<number, Task[]>()
+    const parentTasks = new Set<number>()
+
+    tasks.forEach((task) => {
+      if (task.parent_id) {
+        parentTasks.add(task.parent_id)
+      }
+    })
+
+    parentTasks.forEach((parentId) => {
+      map.set(
+        parentId,
+        tasks.filter((task) => task.parent_id === parentId),
+      )
+    })
+    return map
+  }, [tasks])
+
   const getTasksByColumn = (columnId: string) => {
-    return tasks.filter((t) => t.column_name === columnId && !t.parent_id)
+    const baseTasks = tasks.filter((t) => t.column_name === columnId && !t.parent_id)
+
+    // Only filter "working_on" by quarter
+    if (columnId === "working_on" && currentQuarterStart) {
+      return baseTasks.filter((t) => {
+        // If task has a week_start_date, check if it's in the current quarter
+        if (t.week_start_date) {
+          return isDateInQuarter(t.week_start_date, currentQuarterStart)
+        }
+        // If no week_start_date, include it (for backwards compatibility)
+        return true
+      })
+    }
+
+    // Mission List, Yearly Targets, and Completed are not filtered by quarter
+    return baseTasks
   }
 
   const handleDrop = async (taskId: number, newColumn: string) => {
@@ -32,14 +81,23 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
     }
 
     await moveTask(taskId, newColumn, 0)
+    if (onTasksChange) {
+      onTasksChange()
+    }
   }
 
   const mobileColumns = [
     { id: "mission_list", label: "Mission List" },
     { id: "working_on", label: "Working On" },
-    { id: "completed", label: "Completed" },
     { id: "yearly_targets", label: "Yearly Targets" },
+    { id: "completed", label: "Completed" },
   ]
+
+  const quarterLabel = currentQuarterStart ? formatQuarterLabel(new Date(currentQuarterStart)) : ""
+
+  const handleCurrentQuarter = () => {
+    onQuarterOffsetChange(0)
+  }
 
   const renderMobileView = () => {
     const selectedCol = mobileColumns.find((col) => col.id === mobileColumn)
@@ -52,10 +110,11 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
           title={selectedCol.label}
           columnId={selectedCol.id}
           tasks={getTasksByColumn(selectedCol.id)}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton={selectedCol.id === "mission_list" || selectedCol.id === "yearly_targets"}
-          onAddTask={() => {}}
+          showAddButton={selectedCol.id === "mission_list"}
+          onTasksChange={onTasksChange}
         />
       </div>
     )
@@ -63,50 +122,63 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
 
   return (
     <>
+      {portalContainer &&
+        createPortal(
+          <QuarterNavigator
+            quarterLabel={quarterLabel}
+            onPreviousQuarter={() => onQuarterOffsetChange(quarterOffset - 1)}
+            onNextQuarter={() => onQuarterOffsetChange(quarterOffset + 1)}
+            onCurrentQuarter={handleCurrentQuarter}
+          />,
+          portalContainer,
+        )}
+
       {renderMobileView()}
 
       <div className="hidden md:grid md:grid-cols-4 gap-6 p-6">
-        {/* Mission List */}
+        {/* Mission List - not filtered by quarter */}
         <KanbanColumn
           title="Mission List"
           columnId="mission_list"
           tasks={getTasksByColumn("mission_list")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           showAddButton
-          onAddTask={() => {}}
+          onTasksChange={onTasksChange}
           className="md:col-span-1"
         />
 
-        {/* Working On */}
+        {/* Working On - filtered by selected quarter */}
         <KanbanColumn
           title="Working On"
           columnId="working_on"
           tasks={getTasksByColumn("working_on")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
           className="md:col-span-1"
         />
 
-        {/* Completed */}
-        <KanbanColumn
-          title="Completed"
-          columnId="completed"
-          tasks={getTasksByColumn("completed")}
-          allTasks={tasks}
-          onDrop={handleDrop}
-          className="md:col-span-1"
-        />
-
-        {/* Yearly Targets */}
+        {/* Yearly Targets - not filtered by quarter */}
         <KanbanColumn
           title="Yearly Targets"
           columnId="yearly_targets"
           tasks={getTasksByColumn("yearly_targets")}
+          subtaskMap={subtaskMap}
           allTasks={tasks}
           onDrop={handleDrop}
-          showAddButton
-          onAddTask={() => {}}
+          className="md:col-span-1"
+        />
+
+        {/* Completed - not filtered by quarter */}
+        <KanbanColumn
+          title="Completed"
+          columnId="completed"
+          tasks={getTasksByColumn("completed")}
+          subtaskMap={subtaskMap}
+          allTasks={tasks}
+          onDrop={handleDrop}
           className="md:col-span-1"
         />
       </div>
@@ -115,6 +187,7 @@ export function MissionBoard({ tasks }: MissionBoardProps) {
       <div className="fixed bottom-6 right-6">
         <AddTaskDialog
           columnName="mission_list"
+          onSuccess={onTasksChange}
           trigger={
             <Button size="lg" className="rounded-full h-14 w-14 shadow-lg">
               <Plus className="h-6 w-6" />

@@ -1,21 +1,6 @@
 import { neon } from "@neondatabase/serverless"
 
-// Function to detect v0 preview mode
-function isV0Preview() {
-  const vercelUrl = process.env.VERCEL_URL || ""
-  return vercelUrl.includes("vusercontent.net") || vercelUrl.includes("v0.app")
-}
-
-// Create a mock sql function for preview mode
-const mockSql = (() => {
-  const fn = () => Promise.resolve([])
-  return Object.assign(fn, {
-    transaction: () => Promise.resolve([]),
-  })
-})()
-
-// Export sql directly - either real or mock based on environment
-export const sql = isV0Preview() ? (mockSql as ReturnType<typeof neon>) : neon(process.env.DATABASE_URL || "")
+export const sql = neon(process.env.DATABASE_URL!)
 
 export type TaskLabel = "Door" | "Hit" | "To-Do" | "Mission"
 
