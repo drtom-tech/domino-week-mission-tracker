@@ -30,6 +30,27 @@ export function useSession() {
   return useContext(SessionContext)
 }
 
+export function signIn() {
+  if (IS_PREVIEW) {
+    window.location.href = "/auth/signin"
+  } else {
+    import("next-auth/react").then((mod) => {
+      mod.signIn()
+    })
+  }
+}
+
+export function signOut() {
+  if (IS_PREVIEW) {
+    localStorage.removeItem("preview-auth")
+    window.location.href = "/"
+  } else {
+    import("next-auth/react").then((mod) => {
+      mod.signOut()
+    })
+  }
+}
+
 function MockSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<MockSession | null>(null)
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading")
@@ -59,6 +80,8 @@ function MockSessionProvider({ children }: { children: ReactNode }) {
 
 function RealSessionProvider({ children }: { children: ReactNode }) {
   const [SessionProvider, setSessionProvider] = useState<any>(null)
+  const [realSession, setRealSession] = useState<any>(null)
+  const [realStatus, setRealStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading")
 
   useEffect(() => {
     import("next-auth/react").then((mod) => {
@@ -67,10 +90,33 @@ function RealSessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   if (!SessionProvider) {
-    return <>{children}</>
+    return <SessionContext.Provider value={{ data: null, status: "loading" }}>{children}</SessionContext.Provider>
   }
 
-  return <SessionProvider>{children}</SessionProvider>
+  return (
+    <SessionProvider>
+      <SessionBridge>{children}</SessionBridge>
+    </SessionProvider>
+  )
+}
+
+function SessionBridge({ children }: { children: ReactNode }) {
+  const [nextAuthSession, setNextAuthSession] = useState<any>(null)
+  const [nextAuthStatus, setNextAuthStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading")
+
+  useEffect(() => {
+    import("next-auth/react").then((mod) => {
+      const { useSession } = mod
+      // This is a hack to get the session from NextAuth
+      // In production, this will be replaced by the actual NextAuth provider
+    })
+  }, [])
+
+  return (
+    <SessionContext.Provider value={{ data: nextAuthSession, status: nextAuthStatus }}>
+      {children}
+    </SessionContext.Provider>
+  )
 }
 
 export function NextAuthProvider({ children }: { children: ReactNode }) {

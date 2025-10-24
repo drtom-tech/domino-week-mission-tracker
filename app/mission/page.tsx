@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import useSWR from "swr"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSession, signIn, signOut } from "@/components/session-provider"
 
 export default function MissionPage() {
   const { data: session, status } = useSession()

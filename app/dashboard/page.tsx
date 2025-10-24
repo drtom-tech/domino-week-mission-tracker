@@ -11,7 +11,7 @@ import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
 import { useState, useMemo } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { useSession, signIn, signOut } from "next-auth/react"
+import { useSession, signIn, signOut } from "@/components/session-provider"
 
 export default function Home() {
   const { data: session, status } = useSession()
