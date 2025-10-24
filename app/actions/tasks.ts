@@ -82,8 +82,12 @@ export async function createTask(data: {
   try {
     const userId = await getUserId()
 
+    console.log("[v0] createTask - userId:", userId)
+    console.log("[v0] createTask - data:", data)
+
     let maxPosition = 0
     if (data.weekStartDate) {
+      console.log("[v0] Querying max position with weekStartDate:", data.weekStartDate)
       const result = await sql`
         SELECT COALESCE(MAX(position), -1) as max_pos
         FROM tasks
@@ -91,19 +95,24 @@ export async function createTask(data: {
         AND column_name = ${data.columnName}
         AND week_start_date = ${data.weekStartDate}
       `
+      console.log("[v0] Max position query result:", result)
       maxPosition = result[0]?.max_pos ?? -1
     } else {
+      console.log("[v0] Querying max position without weekStartDate")
       const result = await sql`
         SELECT COALESCE(MAX(position), -1) as max_pos
         FROM tasks
         WHERE user_id = ${userId}
         AND column_name = ${data.columnName}
       `
+      console.log("[v0] Max position query result:", result)
       maxPosition = result[0]?.max_pos ?? -1
     }
 
     const newPosition = maxPosition + 1
+    console.log("[v0] New position:", newPosition)
 
+    console.log("[v0] Inserting new task...")
     await sql`
       INSERT INTO tasks (
         user_id, title, description, column_name, position, parent_id, week_start_date
@@ -117,8 +126,14 @@ export async function createTask(data: {
         ${data.weekStartDate || null}
       )
     `
+    console.log("[v0] Task inserted successfully")
   } catch (error) {
     console.error("[v0] createTask error:", error)
+    console.error("[v0] createTask error message:", error instanceof Error ? error.message : String(error))
+    console.error("[v0] createTask error stack:", error instanceof Error ? error.stack : "No stack trace")
+    if (error && typeof error === "object") {
+      console.error("[v0] createTask error details:", JSON.stringify(error, null, 2))
+    }
     throw error
   }
 }
