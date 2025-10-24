@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/server"
 import type { Task } from "@/lib/db"
 import { getUserId } from "@/lib/get-user-id"
 
@@ -21,7 +21,6 @@ const MOCK_TASKS: Task[] = [
     completed_at: null,
     linked_task_id: null,
     origin_column: null,
-    is_moved_to_hitlist: false,
     clerk_user_id: null,
   },
   {
@@ -51,7 +50,7 @@ const nextMockId = 3
 export async function getTasks(weekStartDate?: string) {
   try {
     const userId = await getUserId()
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     let query = supabase.from("tasks").select("*").eq("user_id", userId).order("position", { ascending: true })
 
@@ -81,7 +80,7 @@ export async function createTask(data: {
   weekStartDate?: string
 }) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   // Get max position
   let query = supabase
@@ -123,7 +122,7 @@ export async function copyDoorTaskToHitList(
   weekStartDate: string,
 ) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: originalTask, error: fetchError } = await supabase
     .from("tasks")
@@ -187,7 +186,7 @@ export async function copyTaskFromHotList(
   weekStartDate?: string,
 ) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: originalTask, error: fetchError } = await supabase
     .from("tasks")
@@ -262,7 +261,7 @@ export async function copyTaskFromHotList(
 
 export async function updateTask(id: number, data: Partial<Task>) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
@@ -309,7 +308,7 @@ export async function updateTask(id: number, data: Partial<Task>) {
 
 export async function deleteTask(id: number) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", userId)
 
@@ -318,7 +317,7 @@ export async function deleteTask(id: number) {
 
 export async function reorderTask(taskId: number, direction: "up" | "down") {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
@@ -398,7 +397,7 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
   console.log("[v0] moveTask called:", { taskId, newColumn, newPosition, weekStartDate })
 
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
@@ -589,7 +588,7 @@ export async function moveTask(taskId: number, newColumn: string, newPosition: n
 
 export async function reorderTaskToPosition(taskId: number, overTaskId: number) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
@@ -651,7 +650,7 @@ export async function moveTaskBetweenDoorAndHitList(
   weekStartDate?: string,
 ) {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: task, error: fetchError } = await supabase
     .from("tasks")
@@ -713,7 +712,7 @@ export async function moveTaskBetweenDoorAndHitList(
 
 export async function checkAndResetWeekly() {
   const userId = await getUserId()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: setting } = await supabase.from("settings").select("value").eq("key", "last_weekly_reset").single()
 
