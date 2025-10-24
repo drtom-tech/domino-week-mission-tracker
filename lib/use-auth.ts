@@ -1,23 +1,13 @@
 "use client"
 
 import { useMockAuth } from "./mock-auth"
-import { useEffect, useState } from "react"
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react"
 
 const isPreview = typeof window !== "undefined" && window.location.hostname.includes("v0.app")
 
 export function useAuth() {
   const mockAuth = useMockAuth()
-  const [nextAuthData, setNextAuthData] = useState<any>(null)
-
-  useEffect(() => {
-    if (!isPreview) {
-      import("next-auth/react").then((mod) => {
-        const { useSession } = mod
-        // This is a hack but necessary to avoid static imports
-        setNextAuthData({ useSession, signOut: mod.signOut })
-      })
-    }
-  }, [])
+  const { data: session, status } = useSession()
 
   if (isPreview) {
     return {
@@ -27,18 +17,11 @@ export function useAuth() {
     }
   }
 
-  if (!nextAuthData) {
-    return {
-      user: null,
-      isLoading: true,
-      signOut: () => {},
-    }
-  }
-
-  // This won't work perfectly but it's better than crashing
   return {
-    user: null,
-    isLoading: false,
-    signOut: () => nextAuthData.signOut({ callbackUrl: "/auth/signin" }),
+    user: session?.user || null,
+    isLoading: status === "loading",
+    signOut: async () => {
+      await nextAuthSignOut({ callbackUrl: "/auth/signin" })
+    },
   }
 }
