@@ -10,16 +10,6 @@ import { Plus } from "lucide-react"
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { formatWeekRange, extractDate } from "@/lib/utils"
-import {
-  DndContext,
-  type DragEndEvent,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  closestCenter,
-  PointerSensor,
-} from "@dnd-kit/core"
-import { moveTask, copyTaskFromHotList } from "@/app/actions/tasks"
 
 interface KanbanBoardProps {
   tasks: Task[]
@@ -162,20 +152,6 @@ export function KanbanBoard({
     { id: "done", label: "Done" },
   ]
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
-  )
-
   useEffect(() => {
     return () => {
       shouldIgnoreSwipe.current = false
@@ -183,73 +159,6 @@ export function KanbanBoard({
       touchEndX.current = 0
     }
   }, [])
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event
-
-    try {
-      if (active.node?.current) {
-        const element = active.node.current as HTMLElement
-        if (element.releasePointerCapture) {
-          try {
-            element.releasePointerCapture(1)
-          } catch (e) {}
-          try {
-            element.releasePointerCapture(0)
-          } catch (e) {}
-        }
-      }
-    } catch (e) {}
-
-    if (!over) {
-      shouldIgnoreSwipe.current = false
-      return
-    }
-
-    const activeTask = active.data.current?.task as Task
-    const sourceColumn = active.data.current?.columnId as string
-    const targetColumn = typeof over.id === "number" ? (over.data.current?.columnId as string) : (over.id as string)
-
-    if (!activeTask || !targetColumn) return
-
-    if (sourceColumn === targetColumn) {
-      return
-    }
-
-    if (sourceColumn === "hot_list" && (targetColumn === "the_door" || targetColumn.startsWith("hit_list_"))) {
-      if (targetColumn === "the_door") {
-        const doorTasksThisWeek = tasks.filter((t) => {
-          const taskWeekDate = extractDate(t.week_start_date)
-          return t.column_name === "the_door" && taskWeekDate === weekStartDate && !t.parent_id
-        })
-
-        if (doorTasksThisWeek.length >= 1) {
-          alert("The Door already has a task this week")
-          return
-        }
-      }
-
-      if (targetColumn.startsWith("hit_list_")) {
-        const hitListTasksThisDay = tasks.filter((t) => {
-          const taskWeekDate = extractDate(t.week_start_date)
-          return t.column_name === targetColumn && taskWeekDate === weekStartDate
-        })
-
-        if (hitListTasksThisDay.length >= 4) {
-          const day = targetColumn.split("_")[2].toUpperCase()
-          alert(`${day} already has 4 tasks`)
-          return
-        }
-      }
-
-      await copyTaskFromHotList(activeTask.id, targetColumn, 0, weekStartDate)
-      onTasksChange?.()
-      return
-    }
-
-    await moveTask(activeTask.id, targetColumn, 0, weekStartDate)
-    onTasksChange?.()
-  }
 
   const handleTouchStart = (e: React.TouchEvent) => {
     const target = e.target as HTMLElement
@@ -480,7 +389,7 @@ export function KanbanBoard({
   }, [tasks, weekStartDate])
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <>
       {portalContainer &&
         createPortal(
           <WeekNavigator
@@ -579,6 +488,6 @@ export function KanbanBoard({
           }
         />
       </div>
-    </DndContext>
+    </>
   )
 }
