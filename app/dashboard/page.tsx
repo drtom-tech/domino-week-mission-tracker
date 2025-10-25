@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { Task } from "@/lib/db-types"
+import { createClient } from "@/lib/supabase/client"
 
 const MenuIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -106,6 +107,36 @@ export default function Home() {
       router.push("/auth/signin")
     }
   }, [authLoading, user, isDevMode, router])
+
+  useEffect(() => {
+    if (!user && !isDevMode) return
+
+    const supabase = createClient()
+
+    console.log("[v0] Setting up real-time subscription for tasks")
+
+    const channel = supabase
+      .channel("tasks-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "tasks",
+        },
+        (payload) => {
+          console.log("[v0] Real-time change detected:", payload)
+          // Refetch tasks when any change occurs
+          fetchTasks()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      console.log("[v0] Cleaning up real-time subscription")
+      supabase.removeChannel(channel)
+    }
+  }, [user, isDevMode, fetchTasks])
 
   if (authLoading && !isDevMode) {
     console.log("[v0] Dashboard showing loading state")
