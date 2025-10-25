@@ -4,6 +4,13 @@ import { createClient } from "@/lib/supabase/server"
 import type { Task } from "@/lib/db-types"
 
 async function getUserId(): Promise<number> {
+  const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
+
+  if (DEV_MODE) {
+    // In dev mode, return a mock user ID
+    return 1
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
