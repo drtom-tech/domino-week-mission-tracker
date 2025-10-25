@@ -209,7 +209,10 @@ export default function Home() {
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => signOut()}>
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
+                        signOut()
+                      }}>
                         <LogOutIcon />
                         <span>Sign out</span>
                       </DropdownMenuItem>
@@ -283,7 +286,10 @@ export default function Home() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => signOut()}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      signOut()
+                    }}>
                       <LogOutIcon />
                       <span>Sign out</span>
                     </DropdownMenuItem>
