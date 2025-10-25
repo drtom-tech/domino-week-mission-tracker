@@ -9,8 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { AddKeysDialog } from "./add-keys-dialog"
 import { EditTaskDialog } from "./edit-task-dialog"
 import { moveTask } from "@/app/actions/tasks"
-import { useSortable } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import React from "react"
 import type { Task } from "@/types/task" // Declare the Task variable
 
@@ -54,20 +52,6 @@ export const TaskCard = React.memo(function TaskCard({
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showMoveDialog, setShowMoveDialog] = useState(false)
   const [movingToColumn, setMovingToColumn] = useState<string | null>(null)
-
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-    data: {
-      task,
-      columnId: currentColumnId,
-    },
-  })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging || externalIsDragging ? 0.5 : 1,
-  }
 
   const tasksForSearch = useMemo(() => {
     if (allTasks) return allTasks
@@ -347,12 +331,8 @@ export const TaskCard = React.memo(function TaskCard({
   return (
     <>
       <Card
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
         className={cn(
-          "p-3 transition-all cursor-grab active:cursor-grabbing",
+          "p-3 transition-all",
           task.completed &&
             currentColumnId !== "done" &&
             task.column_name === "the_door" &&
@@ -363,7 +343,6 @@ export const TaskCard = React.memo(function TaskCard({
             "opacity-60 bg-gray-100/50 border-gray-300",
           hasCopyInDoorOrHitList && "opacity-50 bg-gray-100/50 border-gray-300",
           isInDoorWithCopy && !task.completed && "border-orange-300 bg-orange-50/30",
-          isDragging && "opacity-50 rotate-2 scale-105",
         )}
       >
         <div className="flex items-start gap-2">

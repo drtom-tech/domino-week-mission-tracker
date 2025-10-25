@@ -8,8 +8,6 @@ import { Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AddTaskDialog } from "./add-task-dialog"
 import { DaySelector } from "./day-selector"
-import { useDroppable } from "@dnd-kit/core"
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { useMemo } from "react"
 
 interface KanbanColumnProps {
@@ -53,15 +51,9 @@ export function KanbanColumn({
   getDoorCount,
   allTasks, // Receive allTasks prop
 }: KanbanColumnProps) {
-  const { setNodeRef, isOver } = useDroppable({
-    id: columnId,
-  })
-
   const parentTasks = useMemo(() => {
     return tasks.filter((task) => !task.parent_id)
   }, [tasks])
-
-  const taskIds = useMemo(() => parentTasks.map((task) => task.id), [parentTasks])
 
   const isAtMaxCapacity = maxTasks !== undefined && parentTasks.length >= maxTasks
 
@@ -87,11 +79,9 @@ export function KanbanColumn({
       </div>
 
       <Card
-        ref={setNodeRef}
         className={cn(
           "p-4 min-h-[600px] transition-all duration-200",
           isFullyComplete && "bg-green-50 border-green-400",
-          isOver && "ring-2 ring-primary ring-offset-2",
         )}
       >
         {showDaySelector && selectedDay && onDayChange && (
@@ -100,8 +90,7 @@ export function KanbanColumn({
           </div>
         )}
 
-        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-3">
+        <div className="space-y-3">
             {parentTasks.map((task, index) => {
               const subtasks = subtaskMap.get(task.id) || []
 
@@ -127,8 +116,7 @@ export function KanbanColumn({
               )
             })}
             {parentTasks.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No tasks</p>}
-          </div>
-        </SortableContext>
+        </div>
       </Card>
 
       {maxTasks && (
