@@ -1,6 +1,6 @@
 "use client"
 
-import type { Task } from "@/lib/db"
+import type { Task } from "@/lib/db-types"
 import { TaskCard } from "./task-card"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"

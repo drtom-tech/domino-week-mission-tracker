@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import type { Task } from "@/lib/db"
+import type { Task } from "@/lib/db-types"
 import { KanbanColumn } from "./kanban-column"
 import { AddTaskDialog } from "./add-task-dialog"
 import { WeekNavigator } from "./week-navigator"

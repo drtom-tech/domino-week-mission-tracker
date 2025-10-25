@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { KeyRound, Loader2, Sparkles, X, Pencil, Check } from "lucide-react"
 import { generateSubtaskSuggestions, createSubtasks } from "@/app/actions/ai"
-import type { Task } from "@/lib/db"
+import type { Task } from "@/lib/db-types"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 

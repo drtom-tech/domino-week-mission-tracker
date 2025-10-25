@@ -1,6 +1,6 @@
 "use client"
 
-import type { Task } from "@/lib/db"
+import type { Task } from "@/lib/db-types"
 import { KanbanColumn } from "./kanban-column"
 import { AddTaskDialog } from "./add-task-dialog"
 import { MobileColumnSelector } from "./mobile-column-selector"

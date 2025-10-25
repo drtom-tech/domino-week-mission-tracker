@@ -1,9 +1,3 @@
-import { sql as vercelSql } from "@vercel/postgres"
-
-export const sql = vercelSql
-
-export type { Task, TaskLabel } from "./db-types"
-
 export type TaskLabel = "Door" | "Hit" | "To-Do" | "Mission"
 
 export type Task = {
