@@ -5,13 +5,28 @@ import type { Task } from "@/lib/db-types"
 
 async function getUserId(): Promise<number> {
   const DEV_MODE = process.env.NEXT_PUBLIC_DEV_MODE === "true"
+  const supabase = await createClient()
 
   if (DEV_MODE) {
-    // In dev mode, return a mock user ID
-    return 1
+    // In dev mode, use the dedicated test user email from environment variable
+    const testUserEmail = process.env.DEV_TEST_USER_EMAIL || "test-user@example.com"
+
+    const { data: testUser, error: testUserError } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", testUserEmail)
+      .single()
+
+    if (testUserError || !testUser) {
+      console.error(`[DEV MODE] Test user not found with email: ${testUserEmail}`)
+      console.error("[DEV MODE] Please create a test user in Supabase with this email, or update DEV_TEST_USER_EMAIL in your .env.local")
+      throw new Error(`Test user not found: ${testUserEmail}. Please create a dedicated test user in Supabase.`)
+    }
+
+    console.log(`[DEV MODE] Using test user ID: ${testUser.id} (${testUserEmail})`)
+    return testUser.id
   }
 
-  const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
