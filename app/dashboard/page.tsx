@@ -55,6 +55,14 @@ export default function Home() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
+  const [isDevMode, setIsDevMode] = useState(false)
+
+  useEffect(() => {
+    const devModeFlag = localStorage.getItem("dev_mode_bypass")
+    if (devModeFlag === "true") {
+      setIsDevMode(true)
+    }
+  }, [])
 
   const handleWeekOffsetChange = (newOffset: number) => {
     console.log("[v0] Week offset changing from", weekOffset, "to", newOffset)
@@ -74,7 +82,7 @@ export default function Home() {
   }, [baseWeekStart, weekOffset])
 
   const fetchTasks = useCallback(async () => {
-    if (!currentWeekStart || !user) return
+    if (!currentWeekStart || (!user && !isDevMode)) return
 
     setIsLoading(true)
     setError(null)
@@ -87,19 +95,19 @@ export default function Home() {
     } finally {
       setIsLoading(false)
     }
-  }, [currentWeekStart, user])
+  }, [currentWeekStart, user, isDevMode])
 
   useEffect(() => {
     fetchTasks()
   }, [fetchTasks])
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !isDevMode) {
       router.push("/auth/signin")
     }
-  }, [authLoading, user, router])
+  }, [authLoading, user, isDevMode, router])
 
-  if (authLoading) {
+  if (authLoading && !isDevMode) {
     console.log("[v0] Dashboard showing loading state")
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -110,7 +118,7 @@ export default function Home() {
     )
   }
 
-  if (!user) {
+  if (!user && !isDevMode) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -176,6 +184,9 @@ export default function Home() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                )}
+                {isDevMode && !user && (
+                  <div className="text-xs text-muted-foreground bg-yellow-500/10 px-2 py-1 rounded">Dev Mode</div>
                 )}
                 <Sheet>
                   <SheetTrigger asChild className="md:hidden">
@@ -247,6 +258,9 @@ export default function Home() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              )}
+              {isDevMode && !user && (
+                <div className="text-xs text-muted-foreground bg-yellow-500/10 px-2 py-1 rounded">Dev Mode</div>
               )}
               <Sheet>
                 <SheetTrigger asChild className="md:hidden">

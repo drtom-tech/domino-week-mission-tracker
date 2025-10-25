@@ -18,16 +18,23 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const supabase = createClient()
 
+  const handleDevModeBypass = () => {
+    // Set a flag in localStorage to indicate dev mode
+    localStorage.setItem("dev_mode_bypass", "true")
+    toast.success("Dev mode enabled - bypassing authentication")
+    router.push("/dashboard")
+  }
+
   const handleGoogleSignIn = async () => {
     setIsLoading(true)
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      
+
       if (error) {
         toast.error("Failed to sign in with Google")
         setIsLoading(false)
@@ -93,13 +100,11 @@ export default function SignInPage() {
       }
 
       if (data.user) {
-        const { error: dbError } = await supabase
-          .from('users')
-          .insert({
-            email: data.user.email,
-            name: name || null,
-          })
-        
+        const { error: dbError } = await supabase.from("users").insert({
+          email: data.user.email,
+          name: name || null,
+        })
+
         if (dbError) {
           console.error("Error creating user record:", dbError)
         }
@@ -204,6 +209,17 @@ export default function SignInPage() {
               </form>
             </TabsContent>
           </Tabs>
+
+          <div className="mt-4 pt-4 border-t">
+            <Button
+              variant="ghost"
+              className="w-full text-xs text-muted-foreground hover:text-foreground"
+              onClick={handleDevModeBypass}
+              type="button"
+            >
+              Skip Login (Dev Mode)
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
