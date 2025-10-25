@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@auth/core": "latest",
-    "@auth/drizzle-adapter": "^1.11.0",
     "@aws-sdk/client-rds-data": "latest",
     "@cloudflare/workers-types": "latest",
     "@dnd-kit/core": "latest",
@@ -52,7 +51,6 @@
     "@vercel/analytics": "1.2.2",
     "@vercel/postgres": "latest",
     "@xata.io/client": "latest",
-    "bcryptjs": "latest",
     "better-sqlite3": "latest",
     "bun-types": "latest",
     "class-variance-authority": "^0.7.1",
@@ -84,12 +82,10 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "@types/bcryptjs": "2.4.6",
     "@types/node": "^22",
     "@types/react": "18.2.0",
     "@types/react-dom": "18.2.0",
     "autoprefixer": "^10.4.19",
-    "drizzle-kit": "^0.31.5",
     "eslint": "8.57.0",
     "eslint-config-next": "14.2.3",
     "postcss": "^8.5",
