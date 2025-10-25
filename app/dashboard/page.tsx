@@ -12,10 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Menu, LogOut, Chrome } from "lucide-react"
-import useSWR from "swr"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { signIn } from "next-auth/react"
 import { toast } from "sonner"
+import type { Task } from "@/lib/db-types"
 
 export default function Home() {
   const { user, isLoading: authLoading, signOut } = useAuth()
@@ -37,6 +37,10 @@ export default function Home() {
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
   const [isSigningIn, setIsSigningIn] = useState(false)
+
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
   const handleWeekOffsetChange = (newOffset: number) => {
     console.log("[v0] Week offset changing from", weekOffset, "to", newOffset)
@@ -55,15 +59,25 @@ export default function Home() {
     return result
   }, [baseWeekStart, weekOffset])
 
-  const {
-    data: tasks,
-    error,
-    isLoading,
-    mutate,
-  } = useSWR(currentWeekStart && user ? ["tasks", currentWeekStart] : null, () => getTasks(currentWeekStart), {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: true,
-  })
+  const fetchTasks = useCallback(async () => {
+    if (!currentWeekStart || !user) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const fetchedTasks = await getTasks(currentWeekStart)
+      setTasks(fetchedTasks)
+    } catch (err) {
+      setError(err as Error)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [currentWeekStart, user])
+
+  useEffect(() => {
+    fetchTasks()
+  }, [fetchTasks])
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true)
@@ -412,7 +426,7 @@ export default function Home() {
           onWeekOffsetChange={handleWeekOffsetChange}
           onTasksChange={() => {
             console.log("[v0] onTasksChange called, current weekOffset:", weekOffset)
-            mutate()
+            fetchTasks()
           }}
         />
       </main>
