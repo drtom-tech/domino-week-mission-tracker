@@ -81,7 +81,10 @@ export default function MissionPage() {
                       </div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleSignOut()}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      handleSignOut()
+                    }}>
                       <LogOut className="mr-2 h-4 w-4" />
                       <span>Sign out</span>
                     </DropdownMenuItem>
@@ -150,7 +153,10 @@ export default function MissionPage() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleSignOut()}>
+                  <DropdownMenuItem onSelect={(e) => {
+                    e.preventDefault()
+                    handleSignOut()
+                  }}>
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Sign out</span>
                   </DropdownMenuItem>
