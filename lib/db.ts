@@ -1,6 +1,18 @@
-import { neon } from "@neondatabase/serverless"
+import { Pool } from "pg"
 
-export const sql = neon(process.env.DATABASE_URL!)
+const pool = new Pool({
+  connectionString: process.env.SUPABASE_POSTGRES_URL || process.env.DATABASE_URL,
+})
+
+export const sql = async (query: TemplateStringsArray, ...values: any[]) => {
+  const client = await pool.connect()
+  try {
+    const result = await client.query(query.join("?"), values)
+    return result.rows
+  } finally {
+    client.release()
+  }
+}
 
 export type TaskLabel = "Door" | "Hit" | "To-Do" | "Mission"
 

@@ -28,5 +28,4 @@ next-env.d.ts
 
 pnpm-lock.yaml
 cleaned_backup.sql
-neon_backup.sql
 *.sql
