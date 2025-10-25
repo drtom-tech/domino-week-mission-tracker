@@ -33,31 +33,41 @@ export function AddTaskDialog({
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [label, setLabel] = useState<TaskLabel | "">("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!title.trim()) return
+    if (!title.trim() || isSubmitting) return
 
-    console.log("[v0] AddTaskDialog: Creating task", { title, columnName, parentId, weekStartDate })
+    setIsSubmitting(true)
 
-    await createTask({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      label: label || undefined,
-      columnName,
-      parentId,
-      weekStartDate: columnName.startsWith("hit_list_") ? weekStartDate : undefined,
-    })
+    try {
+      console.log("[v0] AddTaskDialog: Creating task", { title, columnName, parentId, weekStartDate })
 
-    console.log("[v0] AddTaskDialog: Task created, calling onSuccess")
+      await createTask({
+        title: title.trim(),
+        description: description.trim() || undefined,
+        label: label || undefined,
+        columnName,
+        parentId,
+        weekStartDate: columnName.startsWith("hit_list_") ? weekStartDate : undefined,
+      })
 
-    setTitle("")
-    setDescription("")
-    setLabel("")
-    setOpen(false)
+      console.log("[v0] AddTaskDialog: Task created, calling onSuccess")
 
-    onSuccess?.()
+      setTitle("")
+      setDescription("")
+      setLabel("")
+      setOpen(false)
+
+      onSuccess?.()
+    } catch (error) {
+      console.error("[v0] AddTaskDialog: Error creating task", error)
+      alert("Failed to create task. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -108,10 +118,12 @@ export function AddTaskDialog({
           )}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit">Add Task</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding..." : "Add Task"}
+            </Button>
           </div>
         </form>
       </DialogContent>
