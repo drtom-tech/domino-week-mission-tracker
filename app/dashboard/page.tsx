@@ -1,17 +1,10 @@
 "use client"
 
-import type React from "react"
-
 import { KanbanBoard } from "@/components/kanban-board"
 import { KanbanSkeleton } from "@/components/kanban-skeleton"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Menu, LogOut, Chrome } from "lucide-react"
 import { getTasks } from "../actions/tasks"
 import { formatWeekStart, addWeeks, parseDateLocal } from "@/lib/utils"
 import { useState, useMemo, useEffect, useCallback } from "react"
@@ -27,16 +20,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { signIn } from "next-auth/react"
-import { toast } from "sonner"
 import type { Task } from "@/lib/db-types"
+
+const MenuIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="3" y1="12" x2="21" y2="12"></line>
+    <line x1="3" y1="6" x2="21" y2="6"></line>
+    <line x1="3" y1="18" x2="21" y2="18"></line>
+  </svg>
+)
+
+const LogOutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+    <polyline points="16 17 21 12 16 7"></polyline>
+    <line x1="21" y1="12" x2="9" y2="12"></line>
+  </svg>
+)
+
+const AlertCircleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+)
 
 export default function Home() {
   const { user, isLoading: authLoading, signOut } = useAuth()
   const router = useRouter()
   const [baseWeekStart, setBaseWeekStart] = useState<string>(() => formatWeekStart(new Date()))
   const [weekOffset, setWeekOffset] = useState(0)
-  const [isSigningIn, setIsSigningIn] = useState(false)
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -79,87 +93,11 @@ export default function Home() {
     fetchTasks()
   }, [fetchTasks])
 
-  const handleGoogleSignIn = async () => {
-    setIsSigningIn(true)
-    try {
-      await signIn("google", { callbackUrl: "/dashboard" })
-    } catch (error) {
-      toast.error("Failed to sign in with Google")
-      setIsSigningIn(false)
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/auth/signin")
     }
-  }
-
-  const handleCredentialsSignIn = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSigningIn(true)
-
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-
-    try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        toast.error("Invalid email or password")
-      } else {
-        router.refresh()
-      }
-    } catch (error) {
-      console.error("Sign in error:", error)
-      toast.error("An error occurred during sign in")
-    } finally {
-      setIsSigningIn(false)
-    }
-  }
-
-  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setIsSigningIn(true)
-
-    const formData = new FormData(e.currentTarget)
-    const email = formData.get("email") as string
-    const password = formData.get("password") as string
-    const name = formData.get("name") as string
-
-    try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        toast.error(data.error || "Failed to create account")
-        return
-      }
-
-      toast.success("Account created! Signing you in...")
-
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      })
-
-      if (result?.error) {
-        toast.error("Account created but failed to sign in. Please try signing in manually.")
-      } else {
-        router.refresh()
-      }
-    } catch (error) {
-      console.error("Sign up error:", error)
-      toast.error("An error occurred during sign up")
-    } finally {
-      setIsSigningIn(false)
-    }
-  }
+  }, [authLoading, user, router])
 
   if (authLoading) {
     console.log("[v0] Dashboard showing loading state")
@@ -174,95 +112,10 @@ export default function Home() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">Mission and Door</CardTitle>
-            <CardDescription className="text-center">Sign in to access your kanban board</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="signin" className="space-y-4">
-                <Button
-                  variant="outline"
-                  className="w-full bg-transparent"
-                  onClick={handleGoogleSignIn}
-                  disabled={isSigningIn}
-                >
-                  <Chrome className="mr-2 h-4 w-4" />
-                  Continue with Google
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleCredentialsSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-email">Email</Label>
-                    <Input id="signin-email" name="email" type="email" placeholder="you@example.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signin-password">Password</Label>
-                    <Input id="signin-password" name="password" type="password" required />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isSigningIn}>
-                    {isSigningIn ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup" className="space-y-4">
-                <Button
-                  variant="outline"
-                  className="w-full bg-transparent"
-                  onClick={handleGoogleSignIn}
-                  disabled={isSigningIn}
-                >
-                  <Chrome className="mr-2 h-4 w-4" />
-                  Continue with Google
-                </Button>
-
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name">Name (optional)</Label>
-                    <Input id="signup-name" name="name" type="text" placeholder="Your name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input id="signup-email" name="email" type="email" placeholder="you@example.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input id="signup-password" name="password" type="password" required minLength={6} />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isSigningIn}>
-                    {isSigningIn ? "Creating account..." : "Create Account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Redirecting to sign in...</p>
+        </div>
       </div>
     )
   }
@@ -271,7 +124,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-background p-8">
         <Alert variant="destructive" className="max-w-2xl mx-auto">
-          <AlertCircle className="h-4 w-4" />
+          <AlertCircleIcon />
           <AlertTitle>Error Loading Tasks</AlertTitle>
           <AlertDescription className="mt-2">
             <p>There was an error loading your tasks. Please try refreshing the page.</p>
@@ -318,7 +171,7 @@ export default function Home() {
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => signOut()}>
-                        <LogOut className="mr-2 h-4 w-4" />
+                        <LogOutIcon />
                         <span>Sign out</span>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -327,7 +180,7 @@ export default function Home() {
                 <Sheet>
                   <SheetTrigger asChild className="md:hidden">
                     <Button variant="ghost" size="icon">
-                      <Menu className="h-5 w-5" />
+                      <MenuIcon />
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="right">
@@ -389,7 +242,7 @@ export default function Home() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => signOut()}>
-                      <LogOut className="mr-2 h-4 w-4" />
+                      <LogOutIcon />
                       <span>Sign out</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -398,7 +251,7 @@ export default function Home() {
               <Sheet>
                 <SheetTrigger asChild className="md:hidden">
                   <Button variant="ghost" size="icon">
-                    <Menu className="h-5 w-5" />
+                    <MenuIcon />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right">
