@@ -16,12 +16,15 @@ export function useAuth() {
   useEffect(() => {
     // Dev mode bypass
     if (DEV_MODE) {
+      const testUserEmail = process.env.NEXT_PUBLIC_DEV_TEST_USER_EMAIL || "test-user@example.com"
       setUser({
         id: "dev-user-id",
-        email: "dev@example.com",
+        email: testUserEmail,
         created_at: new Date().toISOString(),
         app_metadata: {},
-        user_metadata: {},
+        user_metadata: {
+          name: "Dev Test User",
+        },
         aud: "authenticated",
       } as User)
       setIsLoading(false)
