@@ -8,10 +8,18 @@ import type { User } from "@supabase/supabase-js"
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
   const supabase = createClient()
 
   useEffect(() => {
+    if (!supabase) {
+      setError("Supabase is not configured. Please add environment variables.")
+      setIsLoading(false)
+      return
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setIsLoading(false)
@@ -28,6 +36,8 @@ export function useAuth() {
   }, [supabase])
 
   const signOut = async () => {
+    if (!supabase) return
+
     await supabase.auth.signOut()
     router.push("/auth/signin")
     router.refresh()
@@ -37,5 +47,6 @@ export function useAuth() {
     user,
     isLoading,
     signOut,
+    error,
   }
 }

@@ -6,10 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/lib/use-auth"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-import { CheckCircle, ArrowRight } from "lucide-react"
+import { CheckCircle, ArrowRight, AlertCircle } from "lucide-react"
 
 export default function Home() {
-  const { user, isLoading } = useAuth()
+  const { user, isLoading, error } = useAuth()
   const router = useRouter()
 
   useEffect(() => {
@@ -24,6 +24,42 @@ export default function Home() {
         <div className="text-center">
           <p className="text-muted-foreground">Loading...</p>
         </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
+        <div className="text-center space-y-2 mb-8">
+          <h1 className="text-4xl font-bold text-gray-900">Mission and Door</h1>
+          <p className="text-gray-600">Your personal mission and task tracker</p>
+        </div>
+
+        <Card className="w-full max-w-md border-orange-200 bg-orange-50">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-2">
+              <AlertCircle className="h-12 w-12 text-orange-600" />
+            </div>
+            <CardTitle className="text-2xl text-orange-900">Configuration Required</CardTitle>
+            <CardDescription className="text-orange-700">Supabase environment variables are missing</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-white p-4 rounded-lg border border-orange-200">
+              <p className="text-sm text-gray-700 mb-3">
+                To use this app, please add the following environment variables in the <strong>Vars</strong> section of
+                the v0 sidebar:
+              </p>
+              <ul className="space-y-2 text-sm font-mono text-gray-800">
+                <li className="bg-gray-100 p-2 rounded">NEXT_PUBLIC_SUPABASE_URL</li>
+                <li className="bg-gray-100 p-2 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+              </ul>
+            </div>
+            <p className="text-xs text-gray-600 text-center">
+              You can find these values in your Supabase dashboard under Settings → API
+            </p>
+          </CardContent>
+        </Card>
       </div>
     )
   }
